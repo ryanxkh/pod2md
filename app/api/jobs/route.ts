@@ -11,7 +11,16 @@ const createJobSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
+
   const parsed = createJobSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -23,32 +32,21 @@ export async function POST(request: Request) {
 
   const { audio_url, title } = parsed.data;
 
-  // Upsert episode (source_url = audio_url for Phase 1)
-  const existingEpisodes = await db
-    .select()
-    .from(episodes)
-    .where(eq(episodes.sourceUrl, audio_url))
-    .limit(1);
+  // Atomic upsert episode (source_url = audio_url for Phase 1)
+  const [upsertedEpisode] = await db
+    .insert(episodes)
+    .values({
+      sourceUrl: audio_url,
+      audioUrl: audio_url,
+      title,
+    })
+    .onConflictDoUpdate({
+      target: episodes.sourceUrl,
+      set: { title, audioUrl: audio_url, updatedAt: new Date() },
+    })
+    .returning({ id: episodes.id });
 
-  let episodeId: string;
-
-  if (existingEpisodes.length > 0) {
-    episodeId = existingEpisodes[0].id;
-    await db
-      .update(episodes)
-      .set({ title, audioUrl: audio_url, updatedAt: new Date() })
-      .where(eq(episodes.id, episodeId));
-  } else {
-    const [newEpisode] = await db
-      .insert(episodes)
-      .values({
-        sourceUrl: audio_url,
-        audioUrl: audio_url,
-        title,
-      })
-      .returning({ id: episodes.id });
-    episodeId = newEpisode.id;
-  }
+  const episodeId = upsertedEpisode.id;
 
   // Create job row with status "queued"
   const [newJob] = await db
