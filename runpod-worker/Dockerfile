@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,9 +24,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Bake models at build time to minimize cold starts
-ARG HF_TOKEN
-ENV HF_TOKEN=${HF_TOKEN}
+# Bake models at build time to minimize cold starts.
+# HF_TOKEN is passed as a build secret to avoid leaking into image layers.
+# Build with: docker build --secret id=HF_TOKEN,env=HF_TOKEN .
 
 # Download Faster-Whisper large-v3-turbo model
 RUN python3 -c "\
@@ -33,21 +34,18 @@ from faster_whisper import WhisperModel; \
 WhisperModel('turbo', device='cpu', compute_type='int8')"
 
 # Download pyannote speaker-diarization-community-1 model
-RUN python3 -c "\
+RUN --mount=type=secret,id=HF_TOKEN \
+    python3 -c "\
 from pyannote.audio import Pipeline; \
-import os; \
 Pipeline.from_pretrained( \
     'pyannote/speaker-diarization-community-1', \
-    use_auth_token=os.environ['HF_TOKEN'] \
+    use_auth_token=open('/run/secrets/HF_TOKEN').read().strip() \
 )"
 
 # Download wav2vec2 alignment model (English)
 RUN python3 -c "\
 import whisperx; \
 whisperx.load_align_model(language_code='en', device='cpu')"
-
-# Clear HF_TOKEN from the image layer environment
-ENV HF_TOKEN=""
 
 # Copy application code
 COPY pipeline/ pipeline/

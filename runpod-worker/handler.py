@@ -10,6 +10,7 @@ from pipeline.format import format_output
 def handler(job):
     input_data = job["input"]
     audio_url = input_data["audio_url"]
+    audio_path = None
 
     try:
         # Stage 1: Download
@@ -22,17 +23,14 @@ def handler(job):
 
         # Stage 3: Format
         runpod.serverless.progress_update(job, {"stage": "formatting", "progress": 90})
-        output = format_output(result)
+        return format_output(result)
 
     finally:
-        # Clean up temp file
-        if "audio_path" in locals():
+        if audio_path:
             try:
                 os.unlink(audio_path)
             except OSError:
                 pass
-
-    return output
 
 
 runpod.serverless.start({"handler": handler})
