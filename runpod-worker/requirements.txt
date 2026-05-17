@@ -1,0 +1,7 @@
+runpod>=1.7.7
+whisperx>=3.8.0
+faster-whisper>=1.2.0
+pyannote.audio>=3.3.0
+torch
+torchaudio
+requests
