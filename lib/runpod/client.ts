@@ -1,14 +1,11 @@
-const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY!
-const RUNPOD_ENDPOINT_ID = process.env.RUNPOD_ENDPOINT_ID!
-
 function baseUrl() {
-  return `https://api.runpod.ai/v2/${RUNPOD_ENDPOINT_ID}`
+  return `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}`
 }
 
 function headers() {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${RUNPOD_API_KEY}`,
+    Authorization: `Bearer ${process.env.RUNPOD_API_KEY}`,
   }
 }
 
