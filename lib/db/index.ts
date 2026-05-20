@@ -2,15 +2,16 @@ import { neon } from "@neondatabase/serverless"
 import { drizzle as drizzleHttp } from "drizzle-orm/neon-http"
 import { Pool } from "@neondatabase/serverless"
 import { drizzle as drizzleWs } from "drizzle-orm/neon-serverless"
+import * as schema from "./schema"
 
 function createHttpClient() {
   const sql = neon(process.env.DATABASE_URL!)
-  return drizzleHttp({ client: sql })
+  return drizzleHttp({ client: sql, schema })
 }
 
 function createWsClient() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL! })
-  return drizzleWs({ client: pool })
+  return drizzleWs({ client: pool, schema })
 }
 
 function lazyProxy<T extends object>(factory: () => T): T {
