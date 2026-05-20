@@ -24,12 +24,13 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
         body: JSON.stringify({ audio_url: audioUrl, title }),
       })
 
+      const data = await res.json().catch(() => null)
+
       if (!res.ok) {
-        const data = await res.json().catch(() => null)
         throw new Error(data?.error ?? `Request failed (${res.status})`)
       }
 
-      const { episodeId } = await res.json()
+      const { episodeId } = data
       const submittedTitle = title
       setAudioUrl("")
       setTitle("")
