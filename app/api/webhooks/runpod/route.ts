@@ -1,7 +1,6 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
-import { db } from "@/lib/db"
-import { dbPool } from "@/lib/db"
+import { db, dbPool } from "@/lib/db"
 import { jobs, speakers, segments, episodes } from "@/lib/db/schema"
 import { generateTranscriptMarkdown } from "@/lib/markdown"
 
