@@ -1,3 +1,4 @@
+import { connection } from "next/server"
 import { desc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, jobs } from "@/lib/db/schema"
@@ -5,6 +6,8 @@ import { Dashboard } from "@/components/dashboard"
 import type { EpisodeRow } from "@/components/episode-list"
 
 export default async function Home() {
+  await connection()
+
   const rows = await db
     .select({
       id: episodes.id,
