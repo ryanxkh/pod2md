@@ -1,5 +1,5 @@
 {
-  "id": "76e4152a-0a7e-429e-abe8-bac22e36e852",
+  "id": "520be471-858d-44b1-bebc-ec9d46741833",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -192,6 +192,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "jobs_batch_id_idx": {
+          "name": "jobs_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -309,7 +324,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -345,7 +360,7 @@
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "confidence": {
           "name": "confidence",

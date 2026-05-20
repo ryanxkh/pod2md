@@ -40,7 +40,7 @@ export const speakers = pgTable(
       .notNull()
       .references(() => episodes.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
-    name: text("name").notNull(),
+    name: text("name"),
     confidence: text("confidence"),
   },
   (table) => [
@@ -60,7 +60,7 @@ export const segments = pgTable(
       .references(() => episodes.id, { onDelete: "cascade" }),
     speakerId: text("speaker_id")
       .notNull()
-      .references(() => speakers.id),
+      .references(() => speakers.id, { onDelete: "cascade" }),
     startMs: integer("start_ms").notNull(),
     endMs: integer("end_ms").notNull(),
     text: text("text").notNull(),
@@ -91,6 +91,7 @@ export const jobs = pgTable(
   },
   (table) => [
     index("jobs_status_idx").on(table.status),
+    index("jobs_batch_id_idx").on(table.batchId),
   ],
 )
 

@@ -40,16 +40,17 @@ CREATE TABLE "speakers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"episode_id" text NOT NULL,
 	"label" text NOT NULL,
-	"name" text NOT NULL,
+	"name" text,
 	"confidence" text
 );
 --> statement-breakpoint
 ALTER TABLE "jobs" ADD CONSTRAINT "jobs_episode_id_episodes_id_fk" FOREIGN KEY ("episode_id") REFERENCES "public"."episodes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "segments" ADD CONSTRAINT "segments_episode_id_episodes_id_fk" FOREIGN KEY ("episode_id") REFERENCES "public"."episodes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "segments" ADD CONSTRAINT "segments_speaker_id_speakers_id_fk" FOREIGN KEY ("speaker_id") REFERENCES "public"."speakers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "segments" ADD CONSTRAINT "segments_speaker_id_speakers_id_fk" FOREIGN KEY ("speaker_id") REFERENCES "public"."speakers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "speakers" ADD CONSTRAINT "speakers_episode_id_episodes_id_fk" FOREIGN KEY ("episode_id") REFERENCES "public"."episodes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "episodes_search_vector_idx" ON "episodes" USING gin ("search_vector");--> statement-breakpoint
 CREATE INDEX "jobs_status_idx" ON "jobs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "jobs_batch_id_idx" ON "jobs" USING btree ("batch_id");--> statement-breakpoint
 CREATE INDEX "segments_episode_id_seq_idx" ON "segments" USING btree ("episode_id","seq");--> statement-breakpoint
 CREATE UNIQUE INDEX "speakers_episode_id_label_idx" ON "speakers" USING btree ("episode_id","label");--> statement-breakpoint
 CREATE INDEX "speakers_episode_id_idx" ON "speakers" USING btree ("episode_id");--> statement-breakpoint
