@@ -58,7 +58,7 @@ export async function resolveSpeakerNames(
   if (speakerList.length === 0) return []
 
   if (speakerList.length === 1) {
-    return [{ speakerId: speakerList[0].id, name: episodeTitle, confidence: "low" }]
+    return [{ speakerId: speakerList[0].id, name: episodeTitle, confidence: "medium" }]
   }
 
   const client = new Anthropic()

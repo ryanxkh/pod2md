@@ -5,7 +5,7 @@ import { db, dbPool } from "@/lib/db"
 import { jobs, speakers, segments, episodes } from "@/lib/db/schema"
 import { generateTranscriptMarkdown } from "@/lib/markdown"
 import { resolveSpeakerNames } from "@/lib/speakers/resolve"
-import { regenerateTranscriptMarkdown } from "@/lib/speakers/regenerate-markdown"
+import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -206,16 +206,7 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
         segmentRows,
       )
 
-      for (const r of results) {
-        if (r.confidence === "high" || r.confidence === "medium") {
-          await db
-            .update(speakers)
-            .set({ name: r.name, confidence: r.confidence })
-            .where(eq(speakers.id, r.speakerId))
-        }
-      }
-
-      await regenerateTranscriptMarkdown(job.episodeId)
+      await applySpeakerResolution(job.episodeId, results)
     } catch (err) {
       console.error("Auto speaker resolution failed:", err)
     }

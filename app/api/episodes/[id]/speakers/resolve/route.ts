@@ -2,7 +2,7 @@ import { eq, asc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, speakers, segments } from "@/lib/db/schema"
 import { resolveSpeakerNames } from "@/lib/speakers/resolve"
-import { regenerateTranscriptMarkdown } from "@/lib/speakers/regenerate-markdown"
+import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 
 export async function POST(
   _request: Request,
@@ -42,16 +42,7 @@ export async function POST(
       segmentRows,
     )
 
-    for (const r of results) {
-      if (r.confidence === "high" || r.confidence === "medium") {
-        await db
-          .update(speakers)
-          .set({ name: r.name, confidence: r.confidence })
-          .where(eq(speakers.id, r.speakerId))
-      }
-    }
-
-    await regenerateTranscriptMarkdown(episodeId)
+    await applySpeakerResolution(episodeId, results)
 
     const updatedSpeakers = await db
       .select({
