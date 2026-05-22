@@ -11,7 +11,7 @@ interface ItunesLookupResponse {
 }
 
 export async function resolveApple(appleUrl: string): Promise<ResolverResult> {
-  const match = appleUrl.match(/id(\d+)/)
+  const match = appleUrl.match(/\/id(\d+)/)
   if (!match) {
     throw new Error(
       `Invalid Apple Podcasts URL: could not extract podcast ID from "${appleUrl}"`,
