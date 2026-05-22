@@ -6,11 +6,7 @@ type ItunesItem = {
   itunes?: { duration?: string; summary?: string }
 }
 
-const parser = new Parser<Record<string, unknown>, ItunesItem>({
-  customFields: {
-    item: [["itunes:duration", "itunes.duration"]],
-  },
-})
+const parser = new Parser<Record<string, unknown>, ItunesItem>()
 
 function parseDuration(raw: string): number | null {
   const trimmed = raw.trim()
