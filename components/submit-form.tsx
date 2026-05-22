@@ -7,7 +7,7 @@ import type { ResolvedEpisode } from "@/lib/resolvers/types"
 type Step =
   | { kind: "url" }
   | { kind: "title"; directUrl: string }
-  | { kind: "pick"; podcastTitle: string; episodes: ResolvedEpisode[]; feedUrl: string }
+  | { kind: "pick"; podcastTitle: string; episodes: ResolvedEpisode[] }
 
 interface SubmitFormProps {
   onSubmitted: (episodeId: string, title: string) => void
@@ -45,7 +45,6 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
           kind: "pick",
           podcastTitle: data.podcastTitle,
           episodes: data.episodes,
-          feedUrl: url,
         })
       }
     } catch (err) {
@@ -58,7 +57,6 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
   async function submitJob(payload: {
     audio_url: string
     title: string
-    source_url?: string
     published_at?: string | null
     description?: string | null
     duration_secs?: number | null
@@ -71,7 +69,6 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
         audio_url: payload.audio_url,
         title: payload.title,
       }
-      if (payload.source_url) body.source_url = payload.source_url
       if (payload.published_at) body.published_at = payload.published_at
       if (payload.description) body.description = payload.description
       if (payload.duration_secs != null) body.duration_secs = payload.duration_secs
@@ -111,7 +108,6 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
     await submitJob({
       audio_url: episode.audioUrl,
       title: episode.title,
-      source_url: step.feedUrl,
       published_at: episode.publishedAt,
       description: episode.description,
       duration_secs: episode.durationSecs,

@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     return Response.json({
       type: "feed",
       podcastTitle: result.podcastTitle,
-      episodes: result.episodes,
+      episodes: result.episodes.slice(0, 25),
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
