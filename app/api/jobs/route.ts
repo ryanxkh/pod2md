@@ -7,6 +7,10 @@ import { submitJob } from "@/lib/runpod/client"
 const CreateJobBody = z.object({
   audio_url: z.url(),
   title: z.string().min(1),
+  source_url: z.url().optional(),
+  published_at: z.string().optional(),
+  description: z.string().optional(),
+  duration_secs: z.number().optional(),
 })
 
 export async function POST(request: Request) {
@@ -25,16 +29,30 @@ export async function POST(request: Request) {
     )
   }
 
-  const { audio_url, title } = parsed.data
+  const { audio_url, title, source_url, published_at, description, duration_secs } = parsed.data
+  const sourceUrl = source_url ?? audio_url
 
   try {
-    // Upsert episode (source_url = audio_url for Phase 1)
     const [episode] = await db
       .insert(episodes)
-      .values({ sourceUrl: audio_url, audioUrl: audio_url, title })
+      .values({
+        sourceUrl,
+        audioUrl: audio_url,
+        title,
+        description: description ?? null,
+        publishedAt: published_at ? new Date(published_at) : null,
+        durationSecs: duration_secs ?? null,
+      })
       .onConflictDoUpdate({
         target: episodes.sourceUrl,
-        set: { title, audioUrl: audio_url, updatedAt: new Date() },
+        set: {
+          title,
+          audioUrl: audio_url,
+          description: description ?? undefined,
+          publishedAt: published_at ? new Date(published_at) : undefined,
+          durationSecs: duration_secs ?? undefined,
+          updatedAt: new Date(),
+        },
       })
       .returning({ id: episodes.id })
 
