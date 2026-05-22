@@ -133,6 +133,7 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
           episodes={step.episodes}
           onSelect={handleEpisodeSelect}
           onCancel={handleCancel}
+          disabled={loading}
         />
         {loading && (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">

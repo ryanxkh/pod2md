@@ -10,6 +10,7 @@ interface EpisodePickerProps {
   episodes: ResolvedEpisode[]
   onSelect: (episode: ResolvedEpisode) => void
   onCancel: () => void
+  disabled?: boolean
 }
 
 function formatDate(iso: string): string {
@@ -26,6 +27,7 @@ export function EpisodePicker({
   episodes,
   onSelect,
   onCancel,
+  disabled,
 }: EpisodePickerProps) {
   const visible = episodes.slice(0, MAX_EPISODES)
 
@@ -38,7 +40,8 @@ export function EpisodePicker({
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          disabled={disabled}
+          className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100"
         >
           &larr; Back
         </button>
@@ -54,7 +57,8 @@ export function EpisodePicker({
             key={`${ep.audioUrl}-${i}`}
             type="button"
             onClick={() => onSelect(ep)}
-            className="flex flex-col gap-1 rounded-lg border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:bg-zinc-800/50"
+            disabled={disabled}
+            className="flex flex-col gap-1 rounded-lg border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-zinc-400 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:bg-zinc-800/50"
           >
             <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {ep.title}
