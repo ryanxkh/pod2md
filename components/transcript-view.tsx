@@ -2,6 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { formatTimestamp } from "@/lib/format"
+import {
+  generateExportMarkdown,
+  episodeFilename,
+  type ExportSegment,
+} from "@/lib/export"
+import { showToast } from "@/components/toast"
 
 const SPEAKER_COLORS = [
   "text-blue-600 dark:text-blue-400",
@@ -43,12 +49,18 @@ interface Segment {
 
 interface TranscriptViewProps {
   episodeId: string
+  episodeTitle: string
+  publishedAt: string | null
+  durationSecs: number | null
   speakers: Speaker[]
   segments: Segment[]
 }
 
 export function TranscriptView({
   episodeId,
+  episodeTitle,
+  publishedAt,
+  durationSecs,
   speakers: initialSpeakers,
   segments,
 }: TranscriptViewProps) {
@@ -63,6 +75,44 @@ export function TranscriptView({
   const speakerIndex = new Map(speakers.map((s, i) => [s.id, i]))
 
   const allNamed = speakers.every((s) => !SPEAKER_LABEL_RE.test(s.name))
+
+  const buildExportMarkdown = useCallback(() => {
+    const exportSegments: ExportSegment[] = segments.map((seg) => {
+      const speaker = speakers.find((s) => s.id === seg.speakerId)
+      return {
+        startMs: seg.startMs,
+        speakerName: speaker?.name ?? "Unknown",
+        text: seg.text,
+      }
+    })
+    return generateExportMarkdown(
+      {
+        title: episodeTitle,
+        publishedAt,
+        durationSecs,
+        speakers: speakers.map((s) => s.name),
+      },
+      exportSegments,
+    )
+  }, [segments, speakers, episodeTitle, publishedAt, durationSecs])
+
+  const handleCopy = useCallback(async () => {
+    const md = buildExportMarkdown()
+    await navigator.clipboard.writeText(md)
+    showToast("Transcript copied to clipboard")
+  }, [buildExportMarkdown])
+
+  const handleDownload = useCallback(() => {
+    const md = buildExportMarkdown()
+    const blob = new Blob([md], { type: "text/markdown" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = episodeFilename(episodeTitle)
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast("Downloading transcript")
+  }, [buildExportMarkdown, episodeTitle])
 
   useEffect(() => {
     if (editingSpeakerId && inputRef.current) {
@@ -154,6 +204,24 @@ export function TranscriptView({
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Export actions */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        >
+          Copy transcript
+        </button>
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="rounded-lg border border-zinc-200 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          Download .md
+        </button>
+      </div>
+
       {/* Speaker legend */}
       {speakers.length > 1 && (
         <div className="flex flex-col gap-3">
