@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, jobs } from "@/lib/db/schema"
 import { submitJob } from "@/lib/runpod/client"
+import { normalizeSourceUrl } from "@/lib/url"
 
 const CreateJobBody = z.object({
   audio_url: z.url(),
@@ -30,9 +31,23 @@ export async function POST(request: Request) {
   }
 
   const { audio_url, title, source_url, published_at, description, duration_secs } = parsed.data
-  const sourceUrl = source_url ?? audio_url
+  const sourceUrl = normalizeSourceUrl(source_url ?? audio_url)
 
   try {
+    // Reject resubmission if a completed transcript already exists
+    const [existing] = await db
+      .select({ id: episodes.id, transcriptMd: episodes.transcriptMd })
+      .from(episodes)
+      .where(eq(episodes.sourceUrl, sourceUrl))
+      .limit(1)
+
+    if (existing?.transcriptMd) {
+      return Response.json(
+        { error: "This episode already has a completed transcript" },
+        { status: 409 },
+      )
+    }
+
     const [episode] = await db
       .insert(episodes)
       .values({

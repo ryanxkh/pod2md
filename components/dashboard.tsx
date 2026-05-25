@@ -179,13 +179,18 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
 
   const handleSubmitted = useCallback(
     (episodeId: string, title: string) => {
-      const newEp: EpisodeRow = {
-        id: episodeId,
-        title,
-        createdAt: new Date().toISOString(),
-        status: "queued",
-      }
-      setEpisodes((prev) => [newEp, ...prev])
+      setEpisodes((prev) => {
+        const exists = prev.some((ep) => ep.id === episodeId)
+        if (exists) {
+          return prev.map((ep) =>
+            ep.id === episodeId ? { ...ep, title, status: "queued" } : ep,
+          )
+        }
+        return [
+          { id: episodeId, title, createdAt: new Date().toISOString(), status: "queued" },
+          ...prev,
+        ]
+      })
       startPolling(episodeId)
     },
     [startPolling],
