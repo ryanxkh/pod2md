@@ -1,6 +1,7 @@
-export type UrlType = "rss" | "apple" | "direct"
+export type UrlType = "rss" | "apple" | "spotify" | "direct"
 
 export function detectUrlType(url: string): UrlType {
+  if (url.includes("open.spotify.com")) return "spotify"
   if (url.includes("podcasts.apple.com")) return "apple"
 
   if (
@@ -19,3 +20,4 @@ export function detectUrlType(url: string): UrlType {
 export type { ResolvedEpisode, ResolverResult } from "@/lib/resolvers/types"
 export { resolveRss } from "@/lib/resolvers/rss"
 export { resolveApple } from "@/lib/resolvers/apple"
+export { resolveSpotify } from "@/lib/resolvers/spotify"

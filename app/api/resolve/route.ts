@@ -3,6 +3,7 @@ import {
   detectUrlType,
   resolveRss,
   resolveApple,
+  resolveSpotify,
 } from "@/lib/resolvers"
 
 const ResolveBody = z.object({
@@ -33,8 +34,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result =
-      urlType === "apple" ? await resolveApple(url) : await resolveRss(url)
+    let result
+    if (urlType === "spotify") {
+      result = await resolveSpotify(url)
+    } else if (urlType === "apple") {
+      result = await resolveApple(url)
+    } else {
+      result = await resolveRss(url)
+    }
 
     return Response.json({
       type: "feed",
