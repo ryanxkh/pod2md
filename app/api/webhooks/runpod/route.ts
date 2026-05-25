@@ -11,7 +11,7 @@ import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 
 const ProgressPayload = z.object({
   id: z.string(),
-  status: z.literal("RUNNING"),
+  status: z.enum(["RUNNING", "IN_PROGRESS"]),
   output: z.object({
     stage: z.string(),
     progress: z.number(),
@@ -250,7 +250,7 @@ export async function POST(request: Request) {
     // Determine payload type by status field
     const statusField = (body as Record<string, unknown>)?.status
 
-    if (statusField === "RUNNING") {
+    if (statusField === "RUNNING" || statusField === "IN_PROGRESS") {
       const parsed = ProgressPayload.parse(body)
       await handleProgress(parsed)
     } else if (statusField === "COMPLETED") {

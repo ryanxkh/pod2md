@@ -40,7 +40,7 @@ def transcribe_and_diarize(audio_path: str) -> dict:
     # Step 3: Diarize
     diarize_model = whisperx.DiarizationPipeline(
         model_name="pyannote/speaker-diarization-community-1",
-        use_auth_token=hf_token,
+        token=hf_token,
         device=device,
     )
     diarize_segments = diarize_model(audio_path)

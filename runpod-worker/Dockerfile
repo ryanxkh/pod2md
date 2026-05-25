@@ -39,7 +39,7 @@ RUN --mount=type=secret,id=HF_TOKEN \
 from pyannote.audio import Pipeline; \
 Pipeline.from_pretrained( \
     'pyannote/speaker-diarization-community-1', \
-    use_auth_token=open('/run/secrets/HF_TOKEN').read().strip() \
+    token=open('/run/secrets/HF_TOKEN').read().strip() \
 )"
 
 # Download wav2vec2 alignment model (English)
