@@ -1,8 +1,11 @@
 import { z } from "zod"
-import { eq } from "drizzle-orm"
+import { eq, asc } from "drizzle-orm"
+import { after } from "next/server"
 import { db, dbPool } from "@/lib/db"
 import { jobs, speakers, segments, episodes } from "@/lib/db/schema"
 import { generateTranscriptMarkdown } from "@/lib/markdown"
+import { resolveSpeakerNames } from "@/lib/speakers/resolve"
+import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -169,6 +172,44 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
         progress: 100,
       })
       .where(eq(jobs.id, job.id))
+  })
+
+  // Auto-trigger speaker name resolution after response is sent
+  after(async () => {
+    try {
+      const speakerRows = await db
+        .select({ id: speakers.id, label: speakers.label })
+        .from(speakers)
+        .where(eq(speakers.episodeId, job.episodeId))
+
+      const segmentRows = await db
+        .select({
+          speakerId: segments.speakerId,
+          text: segments.text,
+          seq: segments.seq,
+        })
+        .from(segments)
+        .where(eq(segments.episodeId, job.episodeId))
+        .orderBy(asc(segments.seq))
+
+      const [episode] = await db
+        .select({ title: episodes.title })
+        .from(episodes)
+        .where(eq(episodes.id, job.episodeId))
+        .limit(1)
+
+      if (!episode) return
+
+      const results = await resolveSpeakerNames(
+        episode.title,
+        speakerRows,
+        segmentRows,
+      )
+
+      await applySpeakerResolution(job.episodeId, results)
+    } catch (err) {
+      console.error("Auto speaker resolution failed:", err)
+    }
   })
 }
 
