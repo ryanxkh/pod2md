@@ -90,6 +90,7 @@ export default async function EpisodePage({
 
       {hasTranscript && (
         <TranscriptView
+          episodeId={id}
           speakers={speakerRows.map((s) => ({
             id: s.id,
             label: s.label,
