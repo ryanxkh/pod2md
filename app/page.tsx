@@ -1,26 +1,31 @@
 import { connection } from "next/server"
-import { desc, sql } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { episodes } from "@/lib/db/schema"
+import { episodes, jobs } from "@/lib/db/schema"
 import { Dashboard } from "@/components/dashboard"
 import type { EpisodeRow } from "@/components/episode-list"
 
 export default async function Home() {
   await connection()
 
+  const latestJobs = db
+    .selectDistinctOn([jobs.episodeId], {
+      episodeId: jobs.episodeId,
+      status: jobs.status,
+    })
+    .from(jobs)
+    .orderBy(jobs.episodeId, desc(jobs.createdAt))
+    .as("latest_jobs")
+
   const rows = await db
     .select({
       id: episodes.id,
       title: episodes.title,
       createdAt: episodes.createdAt,
-      jobStatus: sql<string | null>`(
-        SELECT j.status FROM jobs j
-        WHERE j.episode_id = ${episodes.id}
-        ORDER BY j.created_at DESC
-        LIMIT 1
-      )`,
+      jobStatus: latestJobs.status,
     })
     .from(episodes)
+    .leftJoin(latestJobs, eq(latestJobs.episodeId, episodes.id))
     .orderBy(desc(episodes.createdAt))
     .limit(50)
 
