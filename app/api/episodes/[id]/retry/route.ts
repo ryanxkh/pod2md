@@ -32,7 +32,7 @@ export async function POST(
       .orderBy(desc(jobs.createdAt))
       .limit(1)
 
-    if (latestJob && latestJob.status !== "failed") {
+    if (latestJob && latestJob.status !== "failed" && latestJob.status !== "cancelled") {
       return Response.json(
         { error: "Only failed jobs can be retried" },
         { status: 409 },

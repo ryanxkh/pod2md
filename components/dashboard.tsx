@@ -187,16 +187,19 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this episode? This cannot be undone.")) return
-    setEpisodes((prev) => prev.filter((ep) => ep.id !== id))
+    const prev = episodes
+    setEpisodes((curr) => curr.filter((ep) => ep.id !== id))
     try {
       const res = await fetch(`/api/episodes/${id}`, { method: "DELETE" })
       if (!res.ok) {
+        setEpisodes(prev)
         showToast("Delete failed")
       }
     } catch {
+      setEpisodes(prev)
       showToast("Delete failed")
     }
-  }, [])
+  }, [episodes])
 
   useEffect(() => {
     for (const ep of episodes) {
