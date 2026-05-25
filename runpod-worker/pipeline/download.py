@@ -26,7 +26,7 @@ def download_audio(url: str) -> str:
     if content_type and not (
         content_type.startswith("audio/")
         or content_type.startswith("video/")
-        or content_type == "application/octet-stream"
+        or "octet-stream" in content_type
     ):
         raise RuntimeError(f"Unexpected content type: {content_type}")
 
