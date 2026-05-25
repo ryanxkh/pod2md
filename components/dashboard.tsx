@@ -164,6 +164,40 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
     [stopPolling],
   )
 
+  const handleRetry = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/episodes/${id}/retry`, { method: "POST" })
+        if (!res.ok) {
+          const data = await res.json()
+          showToast(data.error ?? "Retry failed")
+          return
+        }
+        setEpisodes((prev) =>
+          prev.map((ep) => (ep.id === id ? { ...ep, status: "queued" } : ep)),
+        )
+        startPolling(id)
+        showToast("Retrying transcription")
+      } catch {
+        showToast("Retry failed")
+      }
+    },
+    [startPolling],
+  )
+
+  const handleDelete = useCallback(async (id: string) => {
+    if (!confirm("Delete this episode? This cannot be undone.")) return
+    setEpisodes((prev) => prev.filter((ep) => ep.id !== id))
+    try {
+      const res = await fetch(`/api/episodes/${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        showToast("Delete failed")
+      }
+    } catch {
+      showToast("Delete failed")
+    }
+  }, [])
+
   useEffect(() => {
     for (const ep of episodes) {
       if (ep.status !== "completed" && ep.status !== "failed") {
@@ -214,6 +248,8 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
           episodes={episodes}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
+          onRetry={handleRetry}
+          onDelete={handleDelete}
         />
 
         {selectedIds.size > 0 && (

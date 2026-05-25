@@ -2,6 +2,29 @@ import { eq, desc, asc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, speakers, segments, jobs } from "@/lib/db/schema"
 
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params
+
+  try {
+    const deleted = await db
+      .delete(episodes)
+      .where(eq(episodes.id, id))
+      .returning({ id: episodes.id })
+
+    if (deleted.length === 0) {
+      return Response.json({ error: "Episode not found" }, { status: 404 })
+    }
+
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    console.error("Episode delete failed:", err)
+    return Response.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
