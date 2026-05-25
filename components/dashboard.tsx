@@ -11,8 +11,8 @@ interface EpisodeApiResponse {
   episode: {
     id: string
     title: string
+    published_at: string | null
     duration_secs: number | null
-    created_at: string
   }
   speakers: Array<{ id: string; name: string }>
   segments: Array<{
@@ -33,7 +33,7 @@ async function fetchEpisodeExport(id: string): Promise<{
   const markdown = generateExportMarkdown(
     {
       title: data.episode.title,
-      publishedAt: data.episode.created_at,
+      publishedAt: data.episode.published_at,
       durationSecs: data.episode.duration_secs,
       speakers: data.speakers.map((s) => s.name),
     },
@@ -107,8 +107,15 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
         Array.from(selectedIds).map(fetchEpisodeExport),
       )
       const zip = new JSZip()
+      const usedNames = new Set<string>()
       for (const r of results) {
-        zip.file(r.filename, r.markdown)
+        let name = r.filename
+        let counter = 1
+        while (usedNames.has(name)) {
+          name = r.filename.replace(/\.md$/, `-${++counter}.md`)
+        }
+        usedNames.add(name)
+        zip.file(name, r.markdown)
       }
       const blob = await zip.generateAsync({ type: "blob" })
       const url = URL.createObjectURL(blob)
