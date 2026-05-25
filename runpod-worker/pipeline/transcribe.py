@@ -3,6 +3,7 @@ import os
 
 import torch
 import whisperx
+from whisperx.diarize import DiarizationPipeline
 
 
 def transcribe_and_diarize(audio_path: str) -> dict:
@@ -38,7 +39,7 @@ def transcribe_and_diarize(audio_path: str) -> dict:
     torch.cuda.empty_cache()
 
     # Step 3: Diarize
-    diarize_model = whisperx.DiarizationPipeline(
+    diarize_model = DiarizationPipeline(
         model_name="pyannote/speaker-diarization-community-1",
         token=hf_token,
         device=device,
