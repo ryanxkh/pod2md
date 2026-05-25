@@ -17,11 +17,11 @@ interface ItunesSearchResponse {
 }
 
 function extractShowName(oembed: SpotifyOembedResponse): string | null {
-  // The iframe HTML contains a title attribute with the show name
   const iframeTitleMatch = oembed.html?.match(/title="([^"]+)"/)
   if (iframeTitleMatch) return iframeTitleMatch[1]
 
-  return oembed.title ?? null
+  // oembed.title is the episode title, not the show name — don't use it here
+  return null
 }
 
 function normalise(s: string): string {
