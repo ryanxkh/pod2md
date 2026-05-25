@@ -1,8 +1,51 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import JSZip from "jszip"
 import { SubmitForm } from "./submit-form"
 import { EpisodeListView, type EpisodeRow } from "./episode-list"
+import { generateExportMarkdown, episodeFilename } from "@/lib/export"
+import { showToast } from "@/components/toast"
+
+interface EpisodeApiResponse {
+  episode: {
+    id: string
+    title: string
+    duration_secs: number | null
+    created_at: string
+  }
+  speakers: Array<{ id: string; name: string }>
+  segments: Array<{
+    start_ms: number
+    speaker_name: string
+    text: string
+  }>
+}
+
+async function fetchEpisodeExport(id: string): Promise<{
+  markdown: string
+  filename: string
+}> {
+  const res = await fetch(`/api/episodes/${id}`)
+  if (!res.ok) throw new Error(`Failed to fetch episode ${id}`)
+  const data: EpisodeApiResponse = await res.json()
+
+  const markdown = generateExportMarkdown(
+    {
+      title: data.episode.title,
+      publishedAt: data.episode.created_at,
+      durationSecs: data.episode.duration_secs,
+      speakers: data.speakers.map((s) => s.name),
+    },
+    data.segments.map((seg) => ({
+      startMs: seg.start_ms,
+      speakerName: seg.speaker_name,
+      text: seg.text,
+    })),
+  )
+
+  return { markdown, filename: episodeFilename(data.episode.title) }
+}
 
 interface DashboardProps {
   initialEpisodes: EpisodeRow[]
@@ -10,9 +53,77 @@ interface DashboardProps {
 
 export function Dashboard({ initialEpisodes }: DashboardProps) {
   const [episodes, setEpisodes] = useState<EpisodeRow[]>(initialEpisodes)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [exporting, setExporting] = useState(false)
   const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
     new Map(),
   )
+
+  const completedEpisodes = episodes.filter((ep) => ep.status === "completed")
+  const hasCompleted = completedEpisodes.length > 0
+  const allCompletedSelected =
+    hasCompleted &&
+    completedEpisodes.every((ep) => selectedIds.has(ep.id))
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    if (allCompletedSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(completedEpisodes.map((ep) => ep.id)))
+    }
+  }, [allCompletedSelected, completedEpisodes])
+
+  const handleBulkCopy = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setExporting(true)
+    try {
+      const results = await Promise.all(
+        Array.from(selectedIds).map(fetchEpisodeExport),
+      )
+      const combined = results.map((r) => r.markdown).join("\n\n---\n\n")
+      await navigator.clipboard.writeText(combined)
+      showToast(`Copied ${results.length} transcript${results.length > 1 ? "s" : ""}`)
+    } catch {
+      showToast("Failed to copy transcripts")
+    } finally {
+      setExporting(false)
+    }
+  }, [selectedIds])
+
+  const handleBulkDownload = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setExporting(true)
+    try {
+      const results = await Promise.all(
+        Array.from(selectedIds).map(fetchEpisodeExport),
+      )
+      const zip = new JSZip()
+      for (const r of results) {
+        zip.file(r.filename, r.markdown)
+      }
+      const blob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "transcripts.zip"
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast(`Downloading ${results.length} transcript${results.length > 1 ? "s" : ""}`)
+    } catch {
+      showToast("Failed to download transcripts")
+    } finally {
+      setExporting(false)
+    }
+  }, [selectedIds])
 
   const stopPolling = useCallback((id: string) => {
     const timer = pollRef.current.get(id)
@@ -77,10 +188,50 @@ export function Dashboard({ initialEpisodes }: DashboardProps) {
     <div className="flex flex-col gap-10">
       <SubmitForm onSubmitted={handleSubmitted} />
       <section>
-        <h2 className="mb-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Recent episodes
-        </h2>
-        <EpisodeListView episodes={episodes} />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Recent episodes
+          </h2>
+          {hasCompleted && (
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+            >
+              {allCompletedSelected ? "Deselect all" : "Select all completed"}
+            </button>
+          )}
+        </div>
+
+        <EpisodeListView
+          episodes={episodes}
+          selectedIds={selectedIds}
+          onToggle={toggleSelection}
+        />
+
+        {selectedIds.size > 0 && (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <span className="mr-auto text-sm text-zinc-600 dark:text-zinc-400">
+              {selectedIds.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={handleBulkCopy}
+              disabled={exporting}
+              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              {exporting ? "Exporting\u2026" : "Copy all"}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDownload}
+              disabled={exporting}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              {exporting ? "Exporting\u2026" : "Download .zip"}
+            </button>
+          </div>
+        )}
       </section>
     </div>
   )
