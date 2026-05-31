@@ -123,3 +123,31 @@ See `.env.example`:
 - Don't introduce CSS-in-JS, CSS modules, or styling other than Tailwind
 - Don't add testing frameworks or write tests unless specifically asked
 - Don't create abstractions "for the future" — solve what's in front of you
+
+## Cursor Cloud specific instructions
+
+### Web app (primary dev surface)
+
+- **Node.js 22** and **npm** (lockfile: `package-lock.json`). After clone: `npm install`, then copy `.env.example` to `.env.local` and fill secrets (see below).
+- **Lint / build** (no DB required): `npm run lint`, `npm run build`.
+- **Dev server**: `npm run dev` → http://localhost:3000. Use tmux for a long-running dev process in Cloud VMs.
+- **No automated test script** in `package.json`; validate with lint, build, and manual/API checks.
+
+### Environment variables
+
+The dashboard (`/`) and job APIs require a valid **`DATABASE_URL`** (Neon Postgres). Without it, the home page throws at `lib/db/index.ts` when Drizzle initializes.
+
+| Variable | Needed for |
+|---|---|
+| `DATABASE_URL` | Dashboard, episodes, jobs, webhooks persistence |
+| `RUNPOD_API_KEY`, `RUNPOD_ENDPOINT_ID` | Submitting transcription jobs |
+| `RUNPOD_WEBHOOK_SECRET`, `BASE_URL` | RunPod progress/completion callbacks (`BASE_URL` must be **publicly reachable** from RunPod; use a tunnel or deployed URL for local dev) |
+| `ANTHROPIC_API_KEY` | Optional speaker-name resolution |
+
+**`/api/resolve`** (POST JSON `{ "url": "..." }`) does **not** use the database and can be used to verify the dev server without `DATABASE_URL` (e.g. direct audio URL → `{"type":"direct",...}`).
+
+After setting `DATABASE_URL`, run `npm run db:migrate` once (or after schema changes).
+
+### RunPod worker (`runpod-worker/`)
+
+Separate Python/GPU project. `pip install -r requirements.txt` pulls **torch**, **whisperx**, and **pyannote** (large download; needs CUDA for real transcription). Local smoke test: `HF_TOKEN=... python test_local.py <audio_url>`. Production path is Docker + RunPod serverless (`runpod-worker/Dockerfile`), not `npm run dev`.
