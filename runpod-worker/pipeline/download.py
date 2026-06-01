@@ -2,6 +2,7 @@ import os
 import tempfile
 
 import requests
+import yt_dlp
 
 DOWNLOAD_TIMEOUT = 300
 CHUNK_SIZE = 8192
@@ -41,6 +42,44 @@ def download_audio(url: str) -> str:
         raise
 
     return path
+
+
+def download_youtube_audio(url: str) -> str:
+    """Download audio from a YouTube URL to a temp file.
+
+    Returns the local file path.
+    """
+    fd, path = tempfile.mkstemp(suffix=".mp3")
+    os.close(fd)
+    os.unlink(path)
+    base_path = path[: -len(".mp3")]
+    outtmpl = f"{base_path}.%(ext)s"
+
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": outtmpl,
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+            }
+        ],
+        "quiet": True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except yt_dlp.utils.DownloadError as exc:
+        raise RuntimeError(f"Failed to download YouTube audio: {exc}") from exc
+    except Exception as exc:
+        raise RuntimeError(f"Failed to download YouTube audio: {exc}") from exc
+
+    output_path = f"{base_path}.mp3"
+    if not os.path.isfile(output_path):
+        raise RuntimeError("Failed to download YouTube audio: output file not found")
+
+    return output_path
 
 
 def _guess_extension(content_type: str, url: str) -> str:

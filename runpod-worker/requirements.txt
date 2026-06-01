@@ -5,3 +5,4 @@ pyannote.audio>=3.3.0
 torch
 torchaudio
 requests
+yt-dlp

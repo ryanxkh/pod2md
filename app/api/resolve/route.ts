@@ -4,6 +4,7 @@ import {
   resolveRss,
   resolveApple,
   resolveSpotify,
+  resolveYouTube,
 } from "@/lib/resolvers"
 
 const ResolveBody = z.object({
@@ -34,6 +35,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (urlType === "youtube") {
+      const result = await resolveYouTube(url)
+      return Response.json({ type: "youtube", url: result.url, title: result.title })
+    }
+
     let result
     if (urlType === "spotify") {
       result = await resolveSpotify(url)

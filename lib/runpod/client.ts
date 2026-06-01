@@ -11,7 +11,7 @@ function headers() {
 
 export interface RunPodInput {
   audio_url: string
-  source_type: string
+  source_type: "direct" | "youtube"
 }
 
 export interface RunPodStatus {
