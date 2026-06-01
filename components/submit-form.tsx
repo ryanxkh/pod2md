@@ -6,7 +6,7 @@ import type { ResolvedEpisode } from "@/lib/resolvers/types"
 
 type Step =
   | { kind: "url" }
-  | { kind: "title"; directUrl: string }
+  | { kind: "title"; audioUrl: string; sourceType: "direct" | "youtube" }
   | { kind: "pick"; podcastTitle: string; episodes: ResolvedEpisode[] }
 
 interface SubmitFormProps {
@@ -39,7 +39,11 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
       }
 
       if (data.type === "direct") {
-        setStep({ kind: "title", directUrl: data.url })
+        setTitle("")
+        setStep({ kind: "title", audioUrl: data.url, sourceType: "direct" })
+      } else if (data.type === "youtube") {
+        setTitle(data.title ?? "")
+        setStep({ kind: "title", audioUrl: data.url, sourceType: "youtube" })
       } else if (data.type === "feed") {
         setStep({
           kind: "pick",
@@ -57,6 +61,7 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
   async function submitJob(payload: {
     audio_url: string
     title: string
+    source_type?: "direct" | "youtube"
     published_at?: string | null
     description?: string | null
     duration_secs?: number | null
@@ -69,6 +74,7 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
         audio_url: payload.audio_url,
         title: payload.title,
       }
+      if (payload.source_type) body.source_type = payload.source_type
       if (payload.published_at) body.published_at = payload.published_at
       if (payload.description) body.description = payload.description
       if (payload.duration_secs != null) body.duration_secs = payload.duration_secs
@@ -100,7 +106,11 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
   async function handleDirectSubmit(e: FormEvent) {
     e.preventDefault()
     if (step.kind !== "title") return
-    await submitJob({ audio_url: step.directUrl, title })
+    await submitJob({
+      audio_url: step.audioUrl,
+      title,
+      source_type: step.sourceType,
+    })
   }
 
   async function handleEpisodeSelect(episode: ResolvedEpisode) {
@@ -148,11 +158,14 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
   }
 
   if (step.kind === "title") {
+    const label =
+      step.sourceType === "youtube"
+        ? "YouTube video — confirm or edit the title"
+        : "Direct audio URL — enter a title to continue"
+
     return (
       <form onSubmit={handleDirectSubmit} className="flex flex-col gap-3">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Direct audio URL — enter a title to continue
-        </p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{label}</p>
         <input
           type="text"
           required

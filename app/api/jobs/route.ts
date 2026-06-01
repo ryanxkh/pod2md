@@ -7,6 +7,7 @@ import { submitJob } from "@/lib/runpod/client"
 const CreateJobBody = z.object({
   audio_url: z.url(),
   title: z.string().min(1),
+  source_type: z.enum(["direct", "youtube"]).default("direct"),
   source_url: z.url().optional(),
   published_at: z.string().optional(),
   description: z.string().optional(),
@@ -29,7 +30,15 @@ export async function POST(request: Request) {
     )
   }
 
-  const { audio_url, title, source_url, published_at, description, duration_secs } = parsed.data
+  const {
+    audio_url,
+    title,
+    source_type,
+    source_url,
+    published_at,
+    description,
+    duration_secs,
+  } = parsed.data
   const sourceUrl = source_url ?? audio_url
 
   try {
@@ -72,10 +81,7 @@ export async function POST(request: Request) {
 
     let runpodResult: { id: string }
     try {
-      runpodResult = await submitJob(
-        { audio_url, source_type: "direct" },
-        webhook,
-      )
+      runpodResult = await submitJob({ audio_url, source_type }, webhook)
     } catch (err) {
       console.error("RunPod submission failed:", err)
       await db
