@@ -151,3 +151,10 @@ After setting `DATABASE_URL`, run `npm run db:migrate` once (or after schema cha
 ### RunPod worker (`runpod-worker/`)
 
 Separate Python/GPU project. `pip install -r requirements.txt` pulls **torch**, **whisperx**, and **pyannote** (large download; needs CUDA for real transcription). Local smoke test: `HF_TOKEN=... python test_local.py <audio_url>`. Production path is Docker + RunPod serverless (`runpod-worker/Dockerfile`), not `npm run dev`.
+
+## Pull requests
+
+Every PR description must include a **Human testing checklist** — the concrete steps a human runs to verify the change in a Vercel preview deploy (Cursor does not add this automatically). Example items:
+- Submit a known podcast URL on the preview deploy.
+- Confirm the episode appears and the job completes.
+- Open `/episodes/[id]` and verify speakers, segments, and timestamps rendered.

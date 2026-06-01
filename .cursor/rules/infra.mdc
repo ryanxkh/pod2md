@@ -1,0 +1,23 @@
+---
+description: Deployment, infrastructure, platform constraints, and product roadmap — read when deploying, opening PRs, choosing libraries, evaluating performance, or scoping/planning features.
+alwaysApply: false
+---
+
+# Deployment & infrastructure
+- Web app (Next.js): Vercel auto-deploys from `main`. PRs get preview deployments. No custom CI/CD.
+- RunPod worker (Python): deployed as a Docker image to a RunPod serverless endpoint (RTX 4090 GPU), built and pushed manually — NOT part of the Vercel pipeline. A web-app PR does not affect the worker, and vice versa.
+- Database: Neon Postgres via Vercel Marketplace (free tier). Hard limit of 10 branches per project. Preview deploys may create Neon branches that don't auto-delete — be aware of branch exhaustion.
+
+# Platform constraints (personal-use tool)
+- Neon free tier: 0.5 GB storage, 10-branch limit. Keep queries efficient.
+- Vercel Hobby: 100 GB bandwidth/month. Uses Fluid Compute (no fixed function timeout ceiling; billed by CPU/memory).
+- RunPod serverless: pay-per-second GPU billing. Worker efficiency matters — no unnecessary processing steps.
+- Keep it simple: no microservices, no message queues, no caching layers.
+
+# Roadmap
+- Phase 1 (DONE): basic pipeline — submit URL, transcribe, view.
+- Phase 2 (current): URL resolution (RSS/Apple/Spotify) + episode picker + speaker-name resolution (Claude API) + speaker rename UI.
+- Phase 3: YouTube/X (yt-dlp) + batch processing + SSE progress + jobs list page.
+- Phase 4: full-text search, shows grouping, voice prints, markdown download, polish, webhook hardening, stuck-job recovery.
+
+Stay in scope — build only what the current task asks for. Update this roadmap as phases complete.
