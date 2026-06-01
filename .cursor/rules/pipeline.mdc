@@ -1,0 +1,14 @@
+---
+description: End-to-end transcription pipeline flow — read when working on job submission, the webhook handler, the RunPod worker, or debugging job flow.
+alwaysApply: false
+---
+
+# Transcription pipeline flow
+
+1. User submits URL → `POST /api/jobs` creates an episode record + job record → dispatches to RunPod with a webhook callback URL.
+2. RunPod worker (separate Python process in `runpod-worker/`): downloads audio → WhisperX transcribes with word-level timestamps → pyannote diarizes speakers → formats structured output.
+3. RunPod sends results back via webhook → `POST /api/webhooks/runpod` receives the payload.
+4. Webhook handler runs a single DB transaction: insert speakers → insert segments → generate markdown transcript → update episode record → mark job completed.
+5. User views the finished transcript at `/episodes/[id]`.
+
+The webhook handler is the most critical path — it's where RunPod results become stored data.

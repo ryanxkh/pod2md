@@ -1,0 +1,29 @@
+---
+globs: app/api/webhooks/**, lib/db/schema.ts, lib/runpod/**, runpod-worker/pipeline/**
+alwaysApply: false
+---
+
+# Review criteria — critical paths
+
+These are the highest-risk surfaces in pod2md. When editing any of them, self-review against the points below before finishing.
+
+## app/api/webhooks/runpod/** — webhook handler (most sensitive path)
+- Runs a single multi-table DB transaction that stores transcription results. A bug here loses transcription output silently.
+- Verify transaction integrity: speakers → segments → markdown → episode update → job status must all succeed or roll back together.
+- Verify error handling on every status branch (progress / completed / failed).
+
+## lib/db/schema.ts — schema changes affect the whole app
+- Check for missing indexes and breaking column changes.
+- Confirm a migration was generated (`npm run db:generate`) — never hand-edit `lib/db/migrations/`.
+- The `searchVector` tsvector column on `episodes` already exists — don't recreate it.
+
+## lib/runpod/** — external API integration
+- Verify error handling and that request/response shapes match RunPod's API.
+
+## runpod-worker/pipeline/** — ML pipeline
+- Maintain stage independence: each function takes input and returns output. No shared mutable state across stages.
+
+## Performance flags (any of the above)
+- Database queries inside loops (N+1).
+- List endpoints returning unbounded results without pagination.
+- Large objects passed Server → Client (serialization cost).

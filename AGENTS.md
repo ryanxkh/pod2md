@@ -123,3 +123,10 @@ See `.env.example`:
 - Don't introduce CSS-in-JS, CSS modules, or styling other than Tailwind
 - Don't add testing frameworks or write tests unless specifically asked
 - Don't create abstractions "for the future" — solve what's in front of you
+
+## Pull requests
+
+Every PR description must include a **Human testing checklist** — the concrete steps a human runs to verify the change in a Vercel preview deploy (Cursor does not add this automatically). Example items:
+- Submit a known podcast URL on the preview deploy.
+- Confirm the episode appears and the job completes.
+- Open `/episodes/[id]` and verify speakers, segments, and timestamps rendered.
