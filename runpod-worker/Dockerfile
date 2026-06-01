@@ -19,10 +19,16 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies with uv instead of pip.
+# WHY: pip's resolver backtracks for *hours* on the torch + torchaudio +
+# whisperx + pyannote graph (each torch wheel is multi-GB, and unpinned torch
+# makes pip download many of them). uv resolves the same graph in seconds.
+# The cache mount reuses downloaded wheels across rebuilds, which is also why
+# --no-cache-dir is intentionally gone.
+RUN pip install --no-cache-dir uv
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --python python3.11 -r requirements.txt
 
 # Bake models at build time to minimize cold starts.
 # HF_TOKEN is passed as a build secret to avoid leaking into image layers.
