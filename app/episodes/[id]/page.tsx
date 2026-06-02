@@ -1,6 +1,5 @@
 import { eq, asc, desc } from "drizzle-orm"
 import { notFound } from "next/navigation"
-import Link from "next/link"
 import { db } from "@/lib/db"
 import { episodes, speakers, segments, jobs } from "@/lib/db/schema"
 import { TranscriptView } from "@/components/transcript-view"
@@ -47,21 +46,14 @@ export default async function EpisodePage({
     latestJob.status !== "failed"
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 px-6 py-16">
-      <Link
-        href="/"
-        className="self-start text-sm text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-      >
-        &larr; Back
-      </Link>
-
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">
           {episode.title}
         </h1>
         <div className="flex items-center gap-3">
           {episode.durationSecs && (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            <span className="rounded-[4px] bg-elevated px-2.5 py-0.5 text-xs font-medium text-fg-secondary">
               {formatDuration(episode.durationSecs)}
             </span>
           )}
@@ -71,8 +63,8 @@ export default async function EpisodePage({
 
       {isLoading && (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300" />
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-accent" />
+          <p className="text-sm text-fg-secondary">
             Transcription in progress&hellip;
           </p>
           {latestJob && <StatusBadge status={latestJob.status} />}
@@ -80,8 +72,8 @@ export default async function EpisodePage({
       )}
 
       {latestJob?.status === "failed" && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
-          <p className="text-sm text-red-700 dark:text-red-400">
+        <div className="rounded-[8px] border border-status-fail/30 bg-elevated p-4">
+          <p className="text-sm text-status-fail">
             Transcription failed
             {latestJob.errorMessage && `: ${latestJob.errorMessage}`}
           </p>

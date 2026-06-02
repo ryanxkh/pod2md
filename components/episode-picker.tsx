@@ -5,6 +5,17 @@ import type { ResolvedEpisode } from "@/lib/resolvers/types"
 import { formatDuration } from "@/lib/format"
 import { BATCH_CAP } from "@/lib/batch/resolve"
 
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+
+const ghostLink =
+  `text-xs text-fg-secondary transition-colors duration-150 ease-out hover:text-fg ${focusRing}`
+
+const cardClass =
+  "rounded-[8px] border border-border px-4 py-3 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface"
+
+const buttonPrimary = `self-start rounded-[8px] bg-accent px-5 py-2.5 text-sm font-medium text-accent-fg transition-colors duration-150 ease-out hover:bg-accent-hover disabled:opacity-50 ${focusRing}`
+
 interface EpisodePickerProps {
   podcastTitle: string
   episodes: ResolvedEpisode[]
@@ -80,7 +91,7 @@ export function EpisodePicker({
               <button
                 type="button"
                 onClick={() => setMode("multi")}
-                className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                className={ghostLink}
               >
                 Multi-select
               </button>
@@ -88,7 +99,7 @@ export function EpisodePicker({
           }
         />
 
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-fg-secondary">
           Select an episode to transcribe
         </p>
 
@@ -99,7 +110,7 @@ export function EpisodePicker({
         />
 
         {episodes.length > BATCH_CAP && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs text-fg-muted">
             Showing {BATCH_CAP} of {episodes.length} episodes
           </p>
         )}
@@ -120,7 +131,7 @@ export function EpisodePicker({
               setMode("single")
               clearSelection()
             }}
-            className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+            className={ghostLink}
           >
             Single-select
           </button>
@@ -132,12 +143,12 @@ export function EpisodePicker({
           type="button"
           onClick={selectAll}
           disabled={disabled}
-          className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className={ghostLink}
         >
           Select all
         </button>
-        <span className="text-zinc-300 dark:text-zinc-600">·</span>
-        <label className="flex items-center gap-1 text-zinc-500">
+        <span className="text-fg-muted">·</span>
+        <label className="flex items-center gap-1 text-fg-secondary">
           Latest
           <input
             type="number"
@@ -145,14 +156,14 @@ export function EpisodePicker({
             max={BATCH_CAP}
             value={latestN}
             onChange={(e) => setLatestN(Number(e.target.value) || 10)}
-            className="w-12 rounded border border-zinc-200 px-1 py-0.5 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+            className={`w-12 rounded-[8px] border border-border bg-surface px-1 py-0.5 text-fg ${focusRing}`}
           />
         </label>
         <button
           type="button"
           onClick={selectLatestN}
           disabled={disabled}
-          className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className={ghostLink}
         >
           Apply
         </button>
@@ -160,7 +171,7 @@ export function EpisodePicker({
           <button
             type="button"
             onClick={clearSelection}
-            className="text-zinc-400 hover:text-zinc-600"
+            className={ghostLink}
           >
             Clear ({selected.size})
           </button>
@@ -171,20 +182,20 @@ export function EpisodePicker({
         {visible.map((ep, i) => (
           <label
             key={`${ep.audioUrl}-${i}`}
-            className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-4 py-3 transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:bg-zinc-800/50"
+            className={`flex cursor-pointer items-start gap-3 ${cardClass}`}
           >
             <input
               type="checkbox"
               checked={selected.has(i)}
               onChange={() => toggleIndex(i)}
               disabled={disabled}
-              className="mt-1 h-4 w-4 shrink-0"
+              className={`mt-1 h-4 w-4 shrink-0 accent-accent ${focusRing}`}
             />
             <span className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <span className="text-sm font-medium text-fg">
                 {ep.title}
               </span>
-              <span className="flex gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="flex gap-3 text-xs text-fg-secondary">
                 {ep.publishedAt && <span>{formatDate(ep.publishedAt)}</span>}
                 {ep.durationSecs != null && (
                   <span>{formatDuration(ep.durationSecs)}</span>
@@ -196,8 +207,8 @@ export function EpisodePicker({
       </div>
 
       {collection && (
-        <p className="text-xs text-zinc-500">
-          Collection: <span className="font-medium">{collection}</span>
+        <p className="text-xs text-fg-secondary">
+          Collection: <span className="font-medium text-fg">{collection}</span>
         </p>
       )}
 
@@ -205,7 +216,7 @@ export function EpisodePicker({
         type="button"
         disabled={disabled || selectedEpisodes.length === 0}
         onClick={() => onBatchSelect(selectedEpisodes)}
-        className="self-start rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+        className={buttonPrimary}
       >
         Transcribe {selectedEpisodes.length || ""}
         {selectedEpisodes.length === 1 ? " episode" : " episodes"}
@@ -227,7 +238,7 @@ function PickerHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <h3 className="text-sm font-semibold text-fg">
         {podcastTitle}
       </h3>
       <div className="flex items-center gap-3">
@@ -236,7 +247,7 @@ function PickerHeader({
           type="button"
           onClick={onCancel}
           disabled={disabled}
-          className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100"
+          className={`text-sm text-fg-secondary transition-colors duration-150 ease-out hover:text-fg disabled:opacity-50 ${focusRing}`}
         >
           &larr; Back
         </button>
@@ -262,12 +273,12 @@ function EpisodeRows({
           type="button"
           onClick={() => onRowClick(ep)}
           disabled={disabled}
-          className="flex flex-col gap-1 rounded-lg border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-zinc-400 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:bg-zinc-800/50"
+          className={`flex flex-col gap-1 text-left disabled:opacity-50 ${cardClass} ${focusRing}`}
         >
-          <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <span className="text-sm font-medium text-fg">
             {ep.title}
           </span>
-          <span className="flex gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="flex gap-3 text-xs text-fg-secondary">
             {ep.publishedAt && <span>{formatDate(ep.publishedAt)}</span>}
             {ep.durationSecs != null && (
               <span>{formatDuration(ep.durationSecs)}</span>

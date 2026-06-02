@@ -1,25 +1,80 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  /* 3-layer warm-dark surfaces (never pure black) */
+  --bg: #0e0d0c;
+  --surface: #1a1815;
+  --elevated: #221f1b;
+
+  /* warm hairlines — felt, not seen */
+  --border: rgba(245, 240, 230, 0.08);
+  --border-strong: rgba(245, 240, 230, 0.14);
+
+  /* warm text ramp */
+  --text: #f5f2ec;
+  --text-secondary: #a8a096;
+  --text-muted: #6e665c;
+
+  /* clay accent — pod2md signature */
+  --accent: #cc6b4d;
+  --accent-hover: #d87c5f;
+  --accent-press: #b85c3f;
+  --accent-fg: #16130f;
+  --accent-subtle: rgba(204, 107, 77, 0.12);
+
+  /* status */
+  --status-done: #7fa06a;
+  --status-run: #a8a096;
+  --status-queued: #6e665c;
+  --status-fail: #d2574e;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-press: var(--accent-press);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-status-done: var(--status-done);
+  --color-status-run: var(--status-run);
+  --color-status-queued: var(--status-queued);
+  --color-status-fail: var(--status-fail);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-badge: 4px;
+  --radius-control: 8px;
+  --radius-modal: 12px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes status-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.65;
+    }
+  }
+
+  .animate-status-pulse {
+    animation: status-pulse 2s ease-in-out infinite;
+  }
 }

@@ -11,15 +11,18 @@ import type { EpisodeEnrichment } from "@/lib/db/schema"
 import { showToast } from "@/components/toast"
 
 const SPEAKER_COLORS = [
-  "text-blue-600 dark:text-blue-400",
-  "text-emerald-600 dark:text-emerald-400",
-  "text-violet-600 dark:text-violet-400",
-  "text-amber-600 dark:text-amber-400",
-  "text-rose-600 dark:text-rose-400",
-  "text-cyan-600 dark:text-cyan-400",
-  "text-fuchsia-600 dark:text-fuchsia-400",
-  "text-lime-600 dark:text-lime-400",
+  "text-sky-400",
+  "text-emerald-400",
+  "text-violet-400",
+  "text-amber-400",
+  "text-rose-400",
+  "text-cyan-400",
+  "text-fuchsia-400",
+  "text-lime-400",
 ]
+
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
 
 const DOT_COLORS = [
   "bg-blue-500",
@@ -251,14 +254,14 @@ export function TranscriptView({
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className={`rounded-[8px] bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-fg transition-colors duration-150 ease-out hover:bg-accent-hover ${focusRing}`}
         >
           Copy transcript
         </button>
         <button
           type="button"
           onClick={handleDownload}
-          className="rounded-lg border border-zinc-200 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className={`rounded-[8px] border border-border px-3.5 py-1.5 text-sm font-medium text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-elevated hover:text-fg ${focusRing}`}
         >
           Download .md
         </button>
@@ -283,18 +286,18 @@ export function TranscriptView({
                       if (e.key === "Escape") cancelEdit()
                     }}
                     onBlur={() => saveEdit(s.id)}
-                    className="w-32 rounded border border-zinc-300 bg-transparent px-1.5 py-0.5 text-sm text-zinc-600 outline-none focus:border-zinc-500 dark:border-zinc-600 dark:text-zinc-400 dark:focus:border-zinc-400"
+                    className={`w-32 rounded-[8px] border border-border bg-surface px-1.5 py-0.5 text-sm text-fg ${focusRing}`}
                   />
                 ) : (
                   <button
                     type="button"
                     onClick={() => startEdit(s)}
                     disabled={savingIds.has(s.id)}
-                    className="group flex items-center gap-1 text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    className={`group flex items-center gap-1 text-fg-secondary transition-colors duration-150 ease-out hover:text-fg ${focusRing}`}
                   >
                     <span>{s.name}</span>
                     {savingIds.has(s.id) ? (
-                      <span className="h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-transparent" />
+                      <span className="h-3 w-3 animate-spin rounded-full border border-border border-t-accent" />
                     ) : (
                       <svg
                         className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100"
@@ -316,7 +319,7 @@ export function TranscriptView({
             type="button"
             onClick={resolveNames}
             disabled={resolving}
-            className="self-start rounded px-2.5 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className={`self-start rounded-[8px] px-2.5 py-1 text-xs font-medium text-fg-secondary transition-colors duration-150 ease-out hover:bg-elevated hover:text-fg disabled:opacity-50 ${focusRing}`}
           >
             {resolving
               ? "Resolving\u2026"
@@ -328,7 +331,7 @@ export function TranscriptView({
       )}
 
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-xs text-status-fail">{error}</p>
       )}
 
       {/* Transcript segments */}
@@ -341,14 +344,14 @@ export function TranscriptView({
           return (
             <div key={seg.id} className="flex flex-col gap-1">
               <div className="flex items-baseline gap-3">
-                <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                <span className="font-mono text-xs text-fg-muted">
                   [{formatTimestamp(seg.startMs)}]
                 </span>
                 <span className={`text-sm font-semibold ${colorClass}`}>
                   {speaker?.name ?? "Unknown"}
                 </span>
               </div>
-              <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <p className="text-sm leading-relaxed text-fg-secondary">
                 {seg.text}
               </p>
             </div>

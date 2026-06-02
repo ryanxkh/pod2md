@@ -1,73 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import JSZip from "jszip"
 import { SubmitForm } from "./submit-form"
 import { EpisodeListView, type EpisodeRow } from "./episode-list"
+import { collectionSlug } from "@/lib/export"
 import {
-  generateExportMarkdown,
-  episodeFilename,
-  generateCollectionIndex,
-  collectionSlug,
-  type ExportEpisode,
-} from "@/lib/export"
-import type { EpisodeEnrichment } from "@/lib/db/schema"
+  downloadCollectionZip,
+  downloadZip,
+  fetchEpisodeExport,
+} from "@/lib/episode-export-client"
 import { showToast } from "@/components/toast"
 
-interface EpisodeApiResponse {
-  episode: {
-    id: string
-    title: string
-    source_url: string
-    published_at: string | null
-    duration_secs: number | null
-    collection: string | null
-    show: string | null
-    language: string | null
-    enrichment: EpisodeEnrichment | null
-    created_at: string
-  }
-  speakers: Array<{ id: string; name: string }>
-  segments: Array<{
-    start_ms: number
-    speaker_name: string
-    text: string
-  }>
-}
-
-function buildExportEpisode(data: EpisodeApiResponse): ExportEpisode {
-  return {
-    id: data.episode.id,
-    title: data.episode.title,
-    sourceUrl: data.episode.source_url,
-    publishedAt: data.episode.published_at,
-    createdAt: data.episode.created_at,
-    durationSecs: data.episode.duration_secs,
-    speakers: data.speakers.map((s) => s.name),
-    collection: data.episode.collection,
-    transcribedAt: data.episode.created_at,
-    show: data.episode.show,
-    language: data.episode.language,
-    enrichment: data.episode.enrichment,
-  }
-}
-
-async function fetchEpisodeExport(id: string): Promise<{
-  markdown: string
-  episode: ExportEpisode
-}> {
-  const res = await fetch(`/api/episodes/${id}`)
-  if (!res.ok) throw new Error(`Failed to fetch episode ${id}`)
-  const data: EpisodeApiResponse = await res.json()
-  const episode = buildExportEpisode(data)
-  const segments = data.segments.map((seg) => ({
-    startMs: seg.start_ms,
-    speakerName: seg.speaker_name,
-    text: seg.text,
-  }))
-  const markdown = generateExportMarkdown(episode, segments)
-  return { markdown, episode }
-}
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
 
 function isFailed(status: string) {
   return status === "failed" || status === "cancelled"
@@ -80,14 +25,31 @@ function isRunning(status: string) {
 interface DashboardProps {
   initialEpisodes: EpisodeRow[]
   collections: string[]
+  showSubmit?: boolean
+  collectionFilter?: string | null
+  onCollectionFilterChange?: (filter: string | null) => void
 }
 
-export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
+export function Dashboard({
+  initialEpisodes,
+  collections,
+  showSubmit = true,
+  collectionFilter: collectionFilterProp,
+  onCollectionFilterChange,
+}: DashboardProps) {
   const [episodes, setEpisodes] = useState<EpisodeRow[]>(initialEpisodes)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [indexAsClaudeMd, setIndexAsClaudeMd] = useState(false)
-  const [collectionFilter, setCollectionFilter] = useState<string | null>(null)
+  const [internalCollectionFilter, setInternalCollectionFilter] = useState<
+    string | null
+  >(null)
+  const collectionFilter =
+    collectionFilterProp !== undefined
+      ? collectionFilterProp
+      : internalCollectionFilter
+  const setCollectionFilter =
+    onCollectionFilterChange ?? setInternalCollectionFilter
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
     new Map(),
@@ -166,66 +128,6 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
     }
   }, [selectedIds])
 
-  const downloadZip = useCallback(
-    async (ids: string[], zipName: string) => {
-      const results = await Promise.all(ids.map(fetchEpisodeExport))
-      const zip = new JSZip()
-      const usedNames = new Set<string>()
-      for (const r of results) {
-        const name = episodeFilename(r.episode, usedNames)
-        zip.file(name, r.markdown)
-      }
-      const blob = await zip.generateAsync({ type: "blob" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = zipName
-      a.click()
-      URL.revokeObjectURL(url)
-    },
-    [],
-  )
-
-  const downloadCollectionZip = useCallback(
-    async (
-      ids: string[],
-      collectionName: string,
-      zipName: string,
-      useClaudeIndexName: boolean,
-    ) => {
-      const results = await Promise.all(ids.map(fetchEpisodeExport))
-      const zip = new JSZip()
-      const folderName = collectionSlug(collectionName)
-      const folder = zip.folder(folderName)
-      if (!folder) throw new Error("Failed to create zip folder")
-
-      const usedNames = new Set<string>()
-      const indexEpisodes = results.map((r) => {
-        const filename = episodeFilename(r.episode, usedNames)
-        folder.file(filename, r.markdown)
-        return {
-          filename,
-          title: r.episode.title,
-          publishedAt: r.episode.publishedAt,
-          sourceUrl: r.episode.sourceUrl,
-          enrichment: r.episode.enrichment,
-        }
-      })
-
-      const indexMd = generateCollectionIndex(collectionName, indexEpisodes)
-      folder.file(useClaudeIndexName ? "CLAUDE.md" : "INDEX.md", indexMd)
-
-      const blob = await zip.generateAsync({ type: "blob" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = zipName
-      a.click()
-      URL.revokeObjectURL(url)
-    },
-    [],
-  )
-
   const handleBulkDownload = useCallback(async () => {
     if (selectedIds.size === 0) return
     setExporting(true)
@@ -237,7 +139,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
     } finally {
       setExporting(false)
     }
-  }, [selectedIds, downloadZip])
+  }, [selectedIds])
 
   const handleExportCollection = useCallback(async () => {
     if (!collectionFilter) return
@@ -265,7 +167,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
     } finally {
       setExporting(false)
     }
-  }, [collectionFilter, episodes, downloadCollectionZip, indexAsClaudeMd])
+  }, [collectionFilter, episodes, indexAsClaudeMd])
 
   const stopPolling = useCallback((id: string) => {
     const timer = pollRef.current.get(id)
@@ -425,25 +327,32 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
     return [...new Set([...collections, ...fromEpisodes])].sort()
   }, [collections, episodes])
 
+  const filterPillActive =
+    "bg-accent text-accent-fg"
+  const filterPillInactive =
+    "bg-elevated text-fg-secondary hover:bg-surface hover:text-fg"
+
   return (
     <div className="flex flex-col gap-10">
-      <SubmitForm
-        onSubmitted={handleSubmitted}
-        onBatchSubmitted={handleBatchSubmitted}
-      />
+      {showSubmit && (
+        <SubmitForm
+          onSubmitted={handleSubmitted}
+          onBatchSubmitted={handleBatchSubmitted}
+        />
+      )}
 
       {(allCollections.length > 0 || batchIds.length > 0) && (
         <div className="flex flex-col gap-2">
           {allCollections.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-zinc-500">Collection</span>
+              <span className="text-xs text-fg-muted">Collection</span>
               <button
                 type="button"
                 onClick={() => setCollectionFilter(null)}
-                className={`rounded-full px-2.5 py-1 text-xs ${
+                className={`rounded-[4px] px-2.5 py-1 text-xs transition-colors duration-150 ease-out ${focusRing} ${
                   collectionFilter === null
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                    ? filterPillActive
+                    : filterPillInactive
                 }`}
               >
                 All
@@ -453,10 +362,10 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
                   key={c}
                   type="button"
                   onClick={() => setCollectionFilter(c)}
-                  className={`rounded-full px-2.5 py-1 text-xs ${
+                  className={`rounded-[4px] px-2.5 py-1 text-xs transition-colors duration-150 ease-out ${focusRing} ${
                     collectionFilter === c
-                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                      ? filterPillActive
+                      : filterPillInactive
                   }`}
                 >
                   {c}
@@ -464,12 +373,12 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
               ))}
               {collectionFilter && (
                 <div className="ml-2 flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <label className="flex items-center gap-1.5 text-xs text-fg-muted">
                     <input
                       type="checkbox"
                       checked={indexAsClaudeMd}
                       onChange={(e) => setIndexAsClaudeMd(e.target.checked)}
-                      className="rounded border-zinc-300"
+                      className="rounded border-border-strong accent-accent"
                     />
                     Index as CLAUDE.md
                   </label>
@@ -477,7 +386,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
                     type="button"
                     disabled={exporting}
                     onClick={handleExportCollection}
-                    className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    className={`text-xs text-fg-secondary transition-colors duration-150 ease-out hover:text-fg ${focusRing}`}
                   >
                     Export knowledge pack .zip
                   </button>
@@ -487,14 +396,14 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
           )}
           {batchIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-zinc-500">Batch</span>
+              <span className="text-xs text-fg-muted">Batch</span>
               <button
                 type="button"
                 onClick={() => setActiveBatchId(null)}
-                className={`rounded-full px-2.5 py-1 text-xs ${
+                className={`rounded-[4px] px-2.5 py-1 text-xs transition-colors duration-150 ease-out ${focusRing} ${
                   activeBatchId === null
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                    ? filterPillActive
+                    : filterPillInactive
                 }`}
               >
                 All
@@ -504,10 +413,10 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
                   key={id}
                   type="button"
                   onClick={() => setActiveBatchId(id)}
-                  className={`rounded-full px-2.5 py-1 font-mono text-xs ${
+                  className={`rounded-[4px] px-2.5 py-1 font-mono text-xs transition-colors duration-150 ease-out ${focusRing} ${
                     activeBatchId === id
-                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                      ? filterPillActive
+                      : filterPillInactive
                   }`}
                 >
                   {id.slice(0, 8)}
@@ -516,7 +425,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
             </div>
           )}
           {batchProgress && (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-fg-secondary">
               Batch progress: {batchProgress.done} done · {batchProgress.running}{" "}
               running · {batchProgress.failed} failed
             </p>
@@ -526,7 +435,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+          <h2 className="text-sm font-medium text-fg-secondary">
             Recent episodes
           </h2>
           <div className="flex flex-wrap items-center gap-3">
@@ -535,14 +444,14 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
                 <button
                   type="button"
                   onClick={handleRetryAllFailed}
-                  className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  className={`text-xs text-fg-secondary transition-colors duration-150 ease-out hover:text-fg ${focusRing}`}
                 >
                   Retry all failed
                 </button>
                 <button
                   type="button"
                   onClick={handleClearFailed}
-                  className="text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+                  className={`text-xs text-status-fail transition-colors duration-150 ease-out hover:opacity-80 ${focusRing}`}
                 >
                   Clear failed
                 </button>
@@ -552,7 +461,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                className={`text-xs text-fg-muted transition-colors duration-150 ease-out hover:text-fg-secondary ${focusRing}`}
               >
                 {allCompletedSelected ? "Deselect all" : "Select all completed"}
               </button>
@@ -569,15 +478,15 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
         />
 
         {selectedIds.size > 0 && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <span className="mr-auto text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="mt-4 flex items-center gap-2 rounded-[8px] border border-border bg-surface px-4 py-3">
+            <span className="mr-auto text-sm text-fg-secondary">
               {selectedIds.size} selected
             </span>
             <button
               type="button"
               onClick={handleBulkCopy}
               disabled={exporting}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className={`rounded-[8px] bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg transition-colors duration-150 ease-out hover:bg-accent-hover disabled:opacity-50 ${focusRing}`}
             >
               {exporting ? "Exporting\u2026" : "Copy all"}
             </button>
@@ -585,7 +494,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
               type="button"
               onClick={handleBulkDownload}
               disabled={exporting}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className={`rounded-[8px] border border-border px-3 py-1.5 text-sm font-medium text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-elevated hover:text-fg disabled:opacity-50 ${focusRing}`}
             >
               {exporting ? "Exporting\u2026" : "Download .zip"}
             </button>
