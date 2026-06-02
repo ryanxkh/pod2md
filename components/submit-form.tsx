@@ -8,7 +8,12 @@ import { episodesToBatchItems } from "@/lib/batch/submit-items"
 
 type Step =
   | { kind: "url" }
-  | { kind: "title"; audioUrl: string; sourceType: "direct" | "youtube" }
+  | {
+      kind: "title"
+      audioUrl: string
+      sourceType: "direct" | "youtube"
+      show?: string | null
+    }
   | { kind: "pick"; podcastTitle: string; episodes: ResolvedEpisode[]; inputUrl: string }
   | { kind: "batch-preview"; items: BatchResolvedItem[]; collection: string | null; capMessage: string | null }
 
@@ -56,7 +61,12 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
         setStep({ kind: "title", audioUrl: data.url, sourceType: "direct" })
       } else if (data.type === "youtube") {
         setTitle(data.title ?? "")
-        setStep({ kind: "title", audioUrl: data.url, sourceType: "youtube" })
+        setStep({
+          kind: "title",
+          audioUrl: data.url,
+          sourceType: "youtube",
+          show: data.channelName ?? null,
+        })
       } else if (data.type === "feed") {
         setStep({
           kind: "pick",
@@ -81,6 +91,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
     description?: string | null
     duration_secs?: number | null
     collection?: string | null
+    show?: string | null
   }) {
     setError(null)
     setLoading(true)
@@ -96,6 +107,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
       if (payload.description) body.description = payload.description
       if (payload.duration_secs != null) body.duration_secs = payload.duration_secs
       if (payload.collection) body.collection = payload.collection
+      if (payload.show) body.show = payload.show
 
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -203,6 +215,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
       source_type: step.sourceType,
       source_url: step.audioUrl,
       collection: collection.trim() || null,
+      show: step.sourceType === "youtube" ? step.show ?? null : null,
     })
   }
 
@@ -216,12 +229,13 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
       description: episode.description,
       duration_secs: episode.durationSecs,
       collection: collection.trim() || null,
+      show: step.podcastTitle,
     })
   }
 
   async function handleFeedBatchSelect(selected: ResolvedEpisode[]) {
     if (step.kind !== "pick") return
-    const items = episodesToBatchItems(selected, step.inputUrl)
+    const items = episodesToBatchItems(selected, step.inputUrl, step.podcastTitle)
     await submitBatch(items, collection.trim() || null)
   }
 

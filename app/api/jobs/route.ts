@@ -10,6 +10,7 @@ const CreateJobBody = z.object({
   description: z.string().optional(),
   duration_secs: z.number().optional(),
   collection: z.string().optional(),
+  show: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     description,
     duration_secs,
     collection,
+    show,
   } = parsed.data
 
   try {
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
       description: description ?? null,
       duration_secs: duration_secs ?? null,
       collection: collection?.trim() || null,
+      show: show?.trim() || null,
     })
 
     if (result.dispatchFailed) {

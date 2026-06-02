@@ -4,6 +4,7 @@ import type { ResolvedEpisode } from "@/lib/resolvers/types"
 export function episodesToBatchItems(
   episodes: ResolvedEpisode[],
   inputUrl: string,
+  show?: string | null,
 ): BatchResolvedItem[] {
   return episodes.map((ep) => ({
     title: ep.title,
@@ -15,5 +16,6 @@ export function episodesToBatchItems(
     duration_secs: ep.durationSecs,
     disposition: "new" as const,
     input_url: inputUrl,
+    show: show ?? null,
   }))
 }

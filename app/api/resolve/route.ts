@@ -37,7 +37,12 @@ export async function POST(request: Request) {
   try {
     if (urlType === "youtube") {
       const result = await resolveYouTube(url)
-      return Response.json({ type: "youtube", url: result.url, title: result.title })
+      return Response.json({
+        type: "youtube",
+        url: result.url,
+        title: result.title,
+        channelName: result.channelName,
+      })
     }
 
     let result

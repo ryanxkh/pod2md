@@ -1,6 +1,7 @@
 export interface YouTubeResolveResult {
   title: string
   url: string
+  channelName: string | null
 }
 
 interface OEmbedResponse {
@@ -36,5 +37,9 @@ export async function resolveYouTube(url: string): Promise<YouTubeResolveResult>
     throw new Error("YouTube video has no title")
   }
 
-  return { title: data.title, url }
+  return {
+    title: data.title,
+    url,
+    channelName: data.author_name?.trim() || null,
+  }
 }

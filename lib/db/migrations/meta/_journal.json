@@ -15,6 +15,13 @@
       "when": 1780363957392,
       "tag": "0001_clean_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780404318487,
+      "tag": "0002_sweet_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

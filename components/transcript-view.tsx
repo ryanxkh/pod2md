@@ -7,6 +7,7 @@ import {
   episodeFilename,
   type ExportSegment,
 } from "@/lib/export"
+import type { EpisodeEnrichment } from "@/lib/db/schema"
 import { showToast } from "@/components/toast"
 
 const SPEAKER_COLORS = [
@@ -52,9 +53,13 @@ interface TranscriptViewProps {
   episodeTitle: string
   sourceUrl?: string | null
   publishedAt: string | null
+  createdAt?: string | null
   durationSecs: number | null
   collection?: string | null
   transcribedAt?: string | null
+  show?: string | null
+  language?: string | null
+  enrichment?: EpisodeEnrichment | null
   speakers: Speaker[]
   segments: Segment[]
 }
@@ -67,6 +72,10 @@ export function TranscriptView({
   durationSecs,
   collection,
   transcribedAt,
+  createdAt,
+  show,
+  language,
+  enrichment,
   speakers: initialSpeakers,
   segments,
 }: TranscriptViewProps) {
@@ -93,25 +102,35 @@ export function TranscriptView({
     })
     return generateExportMarkdown(
       {
+        id: episodeId,
         title: episodeTitle,
         sourceUrl: sourceUrl ?? null,
         publishedAt,
+        createdAt: createdAt ?? transcribedAt ?? null,
         durationSecs,
         speakers: speakers.map((s) => s.name),
         collection: collection ?? null,
         transcribedAt: transcribedAt ?? null,
+        show: show ?? null,
+        language: language ?? null,
+        enrichment: enrichment ?? null,
       },
       exportSegments,
     )
   }, [
     segments,
     speakers,
+    episodeId,
     episodeTitle,
     sourceUrl,
     publishedAt,
+    createdAt,
     durationSecs,
     collection,
     transcribedAt,
+    show,
+    language,
+    enrichment,
   ])
 
   const handleCopy = useCallback(async () => {
@@ -126,11 +145,16 @@ export function TranscriptView({
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = episodeFilename(episodeTitle)
+    a.download = episodeFilename({
+      id: episodeId,
+      title: episodeTitle,
+      publishedAt,
+      createdAt: createdAt ?? transcribedAt ?? null,
+    })
     a.click()
     URL.revokeObjectURL(url)
     showToast("Downloading transcript")
-  }, [buildExportMarkdown, episodeTitle])
+  }, [buildExportMarkdown, episodeId, episodeTitle, publishedAt, createdAt, transcribedAt])
 
   useEffect(() => {
     if (editingSpeakerId && inputRef.current) {

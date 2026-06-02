@@ -12,6 +12,7 @@ export interface DispatchJobInput {
   description?: string | null
   duration_secs?: number | null
   collection?: string | null
+  show?: string | null
   batchId?: string | null
 }
 
@@ -45,6 +46,7 @@ export async function dispatchTranscriptionJob(
       publishedAt: input.published_at ? new Date(input.published_at) : null,
       durationSecs: input.duration_secs ?? null,
       collection: input.collection ?? null,
+      show: input.show ?? null,
     })
     .onConflictDoUpdate({
       target: episodes.sourceUrl,
@@ -55,6 +57,7 @@ export async function dispatchTranscriptionJob(
         publishedAt: input.published_at ? new Date(input.published_at) : undefined,
         durationSecs: input.duration_secs ?? undefined,
         collection: input.collection ?? undefined,
+        show: input.show ?? undefined,
         updatedAt: new Date(),
       },
     })

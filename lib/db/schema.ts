@@ -1,4 +1,13 @@
-import { pgTable, text, integer, timestamp, index, uniqueIndex, customType } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  index,
+  uniqueIndex,
+  customType,
+  jsonb,
+} from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { nanoid } from "nanoid"
 
@@ -7,6 +16,18 @@ const tsvector = customType<{ data: string }>({
     return "tsvector"
   },
 })
+
+export interface EpisodeChapter {
+  start_ms: number
+  title: string
+}
+
+export interface EpisodeEnrichment {
+  summary: string
+  topics: string[]
+  people: string[]
+  chapters: EpisodeChapter[]
+}
 
 // ── Episodes ────────────────────────────────────────────────────────────────
 
@@ -22,6 +43,9 @@ export const episodes = pgTable(
     durationSecs: integer("duration_secs"),
     transcriptMd: text("transcript_md"),
     collection: text("collection"),
+    enrichment: jsonb("enrichment").$type<EpisodeEnrichment | null>(),
+    language: text("language"),
+    show: text("show"),
     searchVector: tsvector("search_vector"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
