@@ -2,6 +2,7 @@ import { eq, asc, desc } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
 import { episodes, speakers, segments, jobs } from "@/lib/db/schema"
+import { EpisodeOverview } from "@/components/episode-overview"
 import { TranscriptView } from "@/components/transcript-view"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDuration } from "@/lib/format"
@@ -60,6 +61,8 @@ export default async function EpisodePage({
           {latestJob && <StatusBadge status={latestJob.status} />}
         </div>
       </div>
+
+      <EpisodeOverview enrichment={episode.enrichment} />
 
       {isLoading && (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
