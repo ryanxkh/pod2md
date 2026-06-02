@@ -21,12 +21,14 @@ export const episodes = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
     durationSecs: integer("duration_secs"),
     transcriptMd: text("transcript_md"),
+    collection: text("collection"),
     searchVector: tsvector("search_vector"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("episodes_search_vector_idx").using("gin", table.searchVector),
+    index("episodes_collection_idx").on(table.collection),
   ],
 )
 
