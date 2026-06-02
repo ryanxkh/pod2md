@@ -9,7 +9,8 @@ import {
   downloadZip,
   fetchEpisodeExport,
 } from "@/lib/episode-export-client"
-import { showToast } from "@/components/toast"
+import { notifyError, notifyInfo, notifySuccess } from "@/lib/notify"
+import { BatchProgressBar } from "@/components/batch-progress-bar"
 
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
@@ -54,6 +55,11 @@ export function Dashboard({
   const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
     new Map(),
   )
+  const handleBulkCopyRef = useRef<() => void>(() => {})
+  const handleBulkDownloadRef = useRef<() => void>(() => {})
+  const handleExportCollectionRef = useRef<() => void>(() => {})
+  const handleRetryRef = useRef<(id: string) => void>(() => {})
+  const handleDeleteRef = useRef<(id: string) => void>(() => {})
 
   const filteredEpisodes = useMemo(() => {
     let list = episodes
@@ -120,9 +126,14 @@ export function Dashboard({
       )
       const combined = results.map((r) => r.markdown).join("\n\n---\n\n")
       await navigator.clipboard.writeText(combined)
-      showToast(`Copied ${results.length} transcript${results.length > 1 ? "s" : ""}`)
+      notifySuccess(
+        `Copied ${results.length} transcript${results.length > 1 ? "s" : ""}`,
+      )
     } catch {
-      showToast("Failed to copy transcripts")
+      notifyError("Failed to copy transcripts", {
+        label: "Try again",
+        onClick: () => handleBulkCopyRef.current(),
+      })
     } finally {
       setExporting(false)
     }
@@ -133,9 +144,14 @@ export function Dashboard({
     setExporting(true)
     try {
       await downloadZip(Array.from(selectedIds), "transcripts.zip")
-      showToast(`Downloading ${selectedIds.size} transcript${selectedIds.size > 1 ? "s" : ""}`)
+      notifySuccess(
+        `Downloading ${selectedIds.size} transcript${selectedIds.size > 1 ? "s" : ""}`,
+      )
     } catch {
-      showToast("Failed to download transcripts")
+      notifyError("Failed to download transcripts", {
+        label: "Try again",
+        onClick: () => handleBulkDownloadRef.current(),
+      })
     } finally {
       setExporting(false)
     }
@@ -149,7 +165,7 @@ export function Dashboard({
       )
       .map((ep) => ep.id)
     if (ids.length === 0) {
-      showToast("No completed episodes in this collection")
+      notifyInfo("No completed episodes in this collection")
       return
     }
     setExporting(true)
@@ -161,9 +177,12 @@ export function Dashboard({
         `${safeName}.zip`,
         indexAsClaudeMd,
       )
-      showToast(`Downloaded knowledge pack (${ids.length} episodes)`)
+      notifySuccess(`Downloaded knowledge pack (${ids.length} episodes)`)
     } catch {
-      showToast("Failed to export collection")
+      notifyError("Failed to export collection", {
+        label: "Try again",
+        onClick: () => handleExportCollectionRef.current(),
+      })
     } finally {
       setExporting(false)
     }
@@ -207,16 +226,22 @@ export function Dashboard({
         const res = await fetch(`/api/episodes/${id}/retry`, { method: "POST" })
         if (!res.ok) {
           const data = await res.json()
-          showToast(data.error ?? "Retry failed")
+          notifyError(data.error ?? "Retry failed", {
+            label: "Retry",
+            onClick: () => handleRetryRef.current(id),
+          })
           return
         }
         setEpisodes((prev) =>
           prev.map((ep) => (ep.id === id ? { ...ep, status: "queued" } : ep)),
         )
         startPolling(id)
-        showToast("Retrying transcription")
+        notifySuccess("Retrying transcription")
       } catch {
-        showToast("Retry failed")
+        notifyError("Retry failed", {
+          label: "Retry",
+          onClick: () => handleRetryRef.current(id),
+        })
       }
     },
     [startPolling],
@@ -235,13 +260,43 @@ export function Dashboard({
       const res = await fetch(`/api/episodes/${id}`, { method: "DELETE" })
       if (!res.ok) {
         setEpisodes(prev)
-        showToast("Delete failed")
+        notifyError("Delete failed", {
+          label: "Retry",
+          onClick: () => handleDeleteRef.current(id),
+        })
       }
     } catch {
       setEpisodes(prev)
-      showToast("Delete failed")
+      notifyError("Delete failed", {
+        label: "Retry",
+        onClick: () => handleDeleteRef.current(id),
+      })
     }
   }, [episodes])
+
+  useEffect(() => {
+    handleBulkCopyRef.current = () => {
+      void handleBulkCopy()
+    }
+    handleBulkDownloadRef.current = () => {
+      void handleBulkDownload()
+    }
+    handleExportCollectionRef.current = () => {
+      void handleExportCollection()
+    }
+    handleRetryRef.current = (id) => {
+      void handleRetry(id)
+    }
+    handleDeleteRef.current = (id) => {
+      void handleDelete(id)
+    }
+  }, [
+    handleBulkCopy,
+    handleBulkDownload,
+    handleExportCollection,
+    handleRetry,
+    handleDelete,
+  ])
 
   const handleRetryAllFailed = useCallback(async () => {
     const failed = failedInView.map((ep) => ep.id)
@@ -315,7 +370,7 @@ export function Dashboard({
       for (const id of episodeIds) {
         startPolling(id)
       }
-      showToast(`Queued ${episodeIds.length} episode(s)`)
+      notifySuccess(`Queued ${episodeIds.length} episode(s)`)
     },
     [startPolling],
   )
@@ -425,10 +480,12 @@ export function Dashboard({
             </div>
           )}
           {batchProgress && (
-            <p className="text-sm text-fg-secondary">
-              Batch progress: {batchProgress.done} done · {batchProgress.running}{" "}
-              running · {batchProgress.failed} failed
-            </p>
+            <BatchProgressBar
+              done={batchProgress.done}
+              running={batchProgress.running}
+              failed={batchProgress.failed}
+              total={batchProgress.total}
+            />
           )}
         </div>
       )}
@@ -475,6 +532,15 @@ export function Dashboard({
           onToggle={toggleSelection}
           onRetry={handleRetry}
           onDelete={handleDelete}
+          isFilteredEmpty={
+            filteredEpisodes.length === 0 &&
+            episodes.length > 0 &&
+            (collectionFilter != null || activeBatchId != null)
+          }
+          onClearFilter={() => {
+            setCollectionFilter(null)
+            setActiveBatchId(null)
+          }}
         />
 
         {selectedIds.size > 0 && (
