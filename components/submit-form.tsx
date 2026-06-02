@@ -37,7 +37,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
   const [step, setStep] = useState<Step>({ kind: "url" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [batchOpen, setBatchOpen] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(true)
   const [batchText, setBatchText] = useState("")
   const [collection, setCollection] = useState("")
   const [latestN, setLatestN] = useState(10)
@@ -207,7 +207,6 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
     setTitle("")
     setBatchText("")
     setStep({ kind: "url" })
-    setBatchOpen(false)
   }
 
   async function handleDirectSubmit(e: FormEvent) {
