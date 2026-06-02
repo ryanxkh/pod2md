@@ -92,6 +92,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       onOpenChange={onOpenChange}
       label="Command palette"
       className="command-palette"
+      overlayClassName="command-palette-overlay"
+      contentClassName="command-palette-dialog"
     >
       <Command.Input
         placeholder="Search episodes or jump to…"
