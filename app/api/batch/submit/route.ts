@@ -16,6 +16,7 @@ const BatchItemSchema = z.object({
   duration_secs: z.number().nullable(),
   disposition: z.enum(["new", "skipped"]),
   input_url: z.string(),
+  show: z.string().nullable().optional(),
 })
 
 const SubmitBody = z.object({
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       description: item.description,
       duration_secs: item.duration_secs,
       collection,
+      show: item.show ?? null,
       batchId,
     })
 

@@ -4,7 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import JSZip from "jszip"
 import { SubmitForm } from "./submit-form"
 import { EpisodeListView, type EpisodeRow } from "./episode-list"
-import { generateExportMarkdown, episodeFilename } from "@/lib/export"
+import {
+  generateExportMarkdown,
+  episodeFilename,
+  generateCollectionIndex,
+  collectionSlug,
+  type ExportEpisode,
+} from "@/lib/export"
+import type { EpisodeEnrichment } from "@/lib/db/schema"
 import { showToast } from "@/components/toast"
 
 interface EpisodeApiResponse {
@@ -15,6 +22,9 @@ interface EpisodeApiResponse {
     published_at: string | null
     duration_secs: number | null
     collection: string | null
+    show: string | null
+    language: string | null
+    enrichment: EpisodeEnrichment | null
     created_at: string
   }
   speakers: Array<{ id: string; name: string }>
@@ -25,32 +35,38 @@ interface EpisodeApiResponse {
   }>
 }
 
+function buildExportEpisode(data: EpisodeApiResponse): ExportEpisode {
+  return {
+    id: data.episode.id,
+    title: data.episode.title,
+    sourceUrl: data.episode.source_url,
+    publishedAt: data.episode.published_at,
+    createdAt: data.episode.created_at,
+    durationSecs: data.episode.duration_secs,
+    speakers: data.speakers.map((s) => s.name),
+    collection: data.episode.collection,
+    transcribedAt: data.episode.created_at,
+    show: data.episode.show,
+    language: data.episode.language,
+    enrichment: data.episode.enrichment,
+  }
+}
+
 async function fetchEpisodeExport(id: string): Promise<{
   markdown: string
-  filename: string
+  episode: ExportEpisode
 }> {
   const res = await fetch(`/api/episodes/${id}`)
   if (!res.ok) throw new Error(`Failed to fetch episode ${id}`)
   const data: EpisodeApiResponse = await res.json()
-
-  const markdown = generateExportMarkdown(
-    {
-      title: data.episode.title,
-      sourceUrl: data.episode.source_url,
-      publishedAt: data.episode.published_at,
-      durationSecs: data.episode.duration_secs,
-      speakers: data.speakers.map((s) => s.name),
-      collection: data.episode.collection,
-      transcribedAt: data.episode.created_at,
-    },
-    data.segments.map((seg) => ({
-      startMs: seg.start_ms,
-      speakerName: seg.speaker_name,
-      text: seg.text,
-    })),
-  )
-
-  return { markdown, filename: episodeFilename(data.episode.title) }
+  const episode = buildExportEpisode(data)
+  const segments = data.segments.map((seg) => ({
+    startMs: seg.start_ms,
+    speakerName: seg.speaker_name,
+    text: seg.text,
+  }))
+  const markdown = generateExportMarkdown(episode, segments)
+  return { markdown, episode }
 }
 
 function isFailed(status: string) {
@@ -70,6 +86,7 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
   const [episodes, setEpisodes] = useState<EpisodeRow[]>(initialEpisodes)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [indexAsClaudeMd, setIndexAsClaudeMd] = useState(false)
   const [collectionFilter, setCollectionFilter] = useState<string | null>(null)
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
@@ -155,14 +172,49 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
       const zip = new JSZip()
       const usedNames = new Set<string>()
       for (const r of results) {
-        let name = r.filename
-        let counter = 1
-        while (usedNames.has(name)) {
-          name = r.filename.replace(/\.md$/, `-${++counter}.md`)
-        }
-        usedNames.add(name)
+        const name = episodeFilename(r.episode, usedNames)
         zip.file(name, r.markdown)
       }
+      const blob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = zipName
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    [],
+  )
+
+  const downloadCollectionZip = useCallback(
+    async (
+      ids: string[],
+      collectionName: string,
+      zipName: string,
+      useClaudeIndexName: boolean,
+    ) => {
+      const results = await Promise.all(ids.map(fetchEpisodeExport))
+      const zip = new JSZip()
+      const folderName = collectionSlug(collectionName)
+      const folder = zip.folder(folderName)
+      if (!folder) throw new Error("Failed to create zip folder")
+
+      const usedNames = new Set<string>()
+      const indexEpisodes = results.map((r) => {
+        const filename = episodeFilename(r.episode, usedNames)
+        folder.file(filename, r.markdown)
+        return {
+          filename,
+          title: r.episode.title,
+          publishedAt: r.episode.publishedAt,
+          sourceUrl: r.episode.sourceUrl,
+          enrichment: r.episode.enrichment,
+        }
+      })
+
+      const indexMd = generateCollectionIndex(collectionName, indexEpisodes)
+      folder.file(useClaudeIndexName ? "CLAUDE.md" : "INDEX.md", indexMd)
+
       const blob = await zip.generateAsync({ type: "blob" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -200,18 +252,20 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
     }
     setExporting(true)
     try {
-      const safeName = collectionFilter
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "")
-      await downloadZip(ids, `${safeName || "collection"}.zip`)
-      showToast(`Downloaded ${ids.length} transcripts`)
+      const safeName = collectionSlug(collectionFilter)
+      await downloadCollectionZip(
+        ids,
+        collectionFilter,
+        `${safeName}.zip`,
+        indexAsClaudeMd,
+      )
+      showToast(`Downloaded knowledge pack (${ids.length} episodes)`)
     } catch {
       showToast("Failed to export collection")
     } finally {
       setExporting(false)
     }
-  }, [collectionFilter, episodes, downloadZip])
+  }, [collectionFilter, episodes, downloadCollectionZip, indexAsClaudeMd])
 
   const stopPolling = useCallback((id: string) => {
     const timer = pollRef.current.get(id)
@@ -409,14 +463,25 @@ export function Dashboard({ initialEpisodes, collections }: DashboardProps) {
                 </button>
               ))}
               {collectionFilter && (
-                <button
-                  type="button"
-                  disabled={exporting}
-                  onClick={handleExportCollection}
-                  className="ml-2 text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                >
-                  Export collection .zip
-                </button>
+                <div className="ml-2 flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+                    <input
+                      type="checkbox"
+                      checked={indexAsClaudeMd}
+                      onChange={(e) => setIndexAsClaudeMd(e.target.checked)}
+                      className="rounded border-zinc-300"
+                    />
+                    Index as CLAUDE.md
+                  </label>
+                  <button
+                    type="button"
+                    disabled={exporting}
+                    onClick={handleExportCollection}
+                    className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  >
+                    Export knowledge pack .zip
+                  </button>
+                </div>
               )}
             </div>
           )}

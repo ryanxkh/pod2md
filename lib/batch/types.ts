@@ -10,6 +10,7 @@ export interface BatchResolvedItem {
   duration_secs: number | null
   disposition: BatchItemDisposition
   input_url: string
+  show?: string | null
 }
 
 export interface BatchPreviewCounts {

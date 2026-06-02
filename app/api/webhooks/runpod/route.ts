@@ -6,6 +6,7 @@ import { jobs, speakers, segments, episodes } from "@/lib/db/schema"
 import { generateTranscriptMarkdown } from "@/lib/markdown"
 import { resolveSpeakerNames } from "@/lib/speakers/resolve"
 import { applySpeakerResolution } from "@/lib/speakers/apply-results"
+import { enrichEpisode } from "@/lib/enrich"
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -159,6 +160,7 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
       .set({
         transcriptMd,
         durationSecs: output.metadata.duration_secs,
+        language: output.metadata.language,
         updatedAt: new Date(),
       })
       .where(eq(episodes.id, job.episodeId))
@@ -209,6 +211,12 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
       await applySpeakerResolution(job.episodeId, results)
     } catch (err) {
       console.error("Auto speaker resolution failed:", err)
+    }
+
+    try {
+      await enrichEpisode(job.episodeId)
+    } catch (err) {
+      console.error("Episode enrichment failed:", err)
     }
   })
 }

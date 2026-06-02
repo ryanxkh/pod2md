@@ -94,8 +94,12 @@ export default async function EpisodePage({
           episodeTitle={episode.title}
           sourceUrl={episode.sourceUrl}
           publishedAt={episode.publishedAt?.toISOString() ?? null}
+          createdAt={episode.createdAt.toISOString()}
           durationSecs={episode.durationSecs}
           collection={episode.collection}
+          show={episode.show}
+          language={episode.language}
+          enrichment={episode.enrichment}
           transcribedAt={episode.createdAt.toISOString()}
           speakers={speakerRows.map((s) => ({
             id: s.id,

@@ -96,6 +96,7 @@ async function resolveFeedUrl(
       description: ep.description,
       duration_secs: ep.durationSecs,
       input_url: url,
+      show: result.podcastTitle,
     }
   })
 
@@ -119,6 +120,7 @@ async function resolveSingleUrl(url: string): Promise<BatchResolvedItem> {
       description: null,
       duration_secs: null,
       input_url: url,
+      show: result.channelName,
     }
     const completed = await loadCompletedSourceUrls([sourceUrl])
     return markDisposition([draft], completed)[0]
