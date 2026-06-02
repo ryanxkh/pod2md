@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
+import { ClipboardList } from "lucide-react"
 import { EpisodePicker } from "./episode-picker"
+
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
 import type { ResolvedEpisode } from "@/lib/resolvers/types"
 import type { BatchResolvedItem } from "@/lib/batch/types"
 import { episodesToBatchItems } from "@/lib/batch/submit-items"
@@ -244,11 +248,11 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
     setError(null)
   }
 
-  const inputClass =
-    "w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-base placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500"
+  const inputClass = `w-full rounded-[8px] border border-border bg-surface px-4 py-3 text-base text-fg placeholder:text-fg-muted transition-colors duration-150 ease-out ${focusRing}`
 
-  const buttonClass =
-    "self-start rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+  const buttonClass = `self-start rounded-[8px] bg-accent px-5 py-2.5 text-sm font-medium text-accent-fg transition-colors duration-150 ease-out hover:bg-accent-hover disabled:opacity-50 ${focusRing}`
+
+  const ghostButtonClass = `text-sm text-fg-secondary transition-colors duration-150 ease-out hover:text-fg ${focusRing}`
 
   if (step.kind === "batch-preview") {
     const newCount = step.items.filter((i) => i.disposition === "new").length
@@ -257,9 +261,9 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
     return (
       <div className="flex flex-col gap-3">
         {step.capMessage && (
-          <p className="text-sm text-amber-700 dark:text-amber-400">{step.capMessage}</p>
+          <p className="text-sm text-accent">{step.capMessage}</p>
         )}
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-fg-secondary">
           Queue <strong>{newCount}</strong> new
           {skippedCount > 0 && (
             <> ({skippedCount} already done, skipped)</>
@@ -268,14 +272,14 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
             <> · collection <strong>{step.collection}</strong></>
           )}
         </p>
-        <ul className="max-h-48 overflow-y-auto rounded-lg border border-zinc-200 text-sm dark:border-zinc-700">
+        <ul className="max-h-48 overflow-y-auto rounded-[8px] border border-border text-sm">
           {step.items.map((item) => (
             <li
               key={item.source_url}
-              className="flex justify-between gap-2 border-b border-zinc-100 px-3 py-2 last:border-0 dark:border-zinc-800"
+              className="flex justify-between gap-2 border-b border-border px-3 py-2 last:border-0"
             >
               <span className="truncate">{item.title}</span>
-              <span className="shrink-0 text-xs text-zinc-400">
+              <span className="shrink-0 text-xs text-fg-muted">
                 {item.disposition === "skipped" ? "skip" : "new"}
               </span>
             </li>
@@ -293,13 +297,13 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
           <button
             type="button"
             onClick={handleCancel}
-            className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className={ghostButtonClass}
           >
             Cancel
           </button>
         </div>
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-status-fail">{error}</p>
         )}
       </div>
     )
@@ -318,10 +322,10 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
           collection={collection.trim() || undefined}
         />
         {loading && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Submitting…</p>
+          <p className="text-sm text-fg-secondary">Submitting…</p>
         )}
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-status-fail">{error}</p>
         )}
       </div>
     )
@@ -335,7 +339,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
 
     return (
       <form onSubmit={handleDirectSubmit} className="flex flex-col gap-3">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="text-sm text-fg-secondary">{label}</p>
         <input
           type="text"
           required
@@ -351,13 +355,13 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
           <button
             type="button"
             onClick={handleCancel}
-            className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className={ghostButtonClass}
           >
             Cancel
           </button>
         </div>
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-status-fail">{error}</p>
         )}
       </form>
     )
@@ -385,20 +389,21 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
           {loading ? "Resolving feed…" : "Transcribe"}
         </button>
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-status-fail">{error}</p>
         )}
       </form>
 
       <button
         type="button"
         onClick={() => setBatchOpen((o) => !o)}
-        className="self-start text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        className={`flex items-center gap-2 self-start rounded-[8px] border border-border px-3 py-2 text-sm text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-elevated hover:text-fg ${focusRing}`}
       >
+        <ClipboardList size={16} aria-hidden />
         {batchOpen ? "Hide batch paste" : "Batch paste URLs"}
       </button>
 
       {batchOpen && (
-        <form onSubmit={handleBatchPreview} className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+        <form onSubmit={handleBatchPreview} className="flex flex-col gap-3 rounded-[8px] border border-border bg-surface p-4">
           <textarea
             value={batchText}
             onChange={(e) => setBatchText(e.target.value)}
@@ -408,7 +413,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
             className={inputClass.replace("text-base", "text-sm")}
           />
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <label className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+            <label className="flex items-center gap-2 text-fg-secondary">
               Latest per show
               <input
                 type="number"
@@ -416,7 +421,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
                 max={25}
                 value={latestN}
                 onChange={(e) => setLatestN(Number(e.target.value) || 10)}
-                className="w-14 rounded border border-zinc-200 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-900"
+                className={`w-14 rounded-[8px] border border-border bg-surface px-2 py-1 text-fg ${focusRing}`}
               />
             </label>
           </div>

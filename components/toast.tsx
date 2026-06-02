@@ -37,7 +37,7 @@ export function ToastProvider() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="animate-in slide-in-from-bottom-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-[8px] border border-border bg-surface px-4 py-2.5 text-sm text-fg"
         >
           {t.message}
         </div>
