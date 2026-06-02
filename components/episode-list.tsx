@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { RotateCw, Trash2 } from "lucide-react"
+import { AudioLines, Check, Clock, FilterX, Loader2, RotateCw, Trash2 } from "lucide-react"
 import { StatusBadge } from "./status-badge"
+import { EmptyState } from "./empty-state"
 
 export interface EpisodeRow {
   id: string
@@ -17,6 +18,8 @@ interface EpisodeListViewProps {
   onToggle?: (id: string) => void
   onRetry?: (id: string) => void
   onDelete?: (id: string) => void
+  isFilteredEmpty?: boolean
+  onClearFilter?: () => void
 }
 
 const focusRing =
@@ -26,18 +29,70 @@ function isFailed(status: string) {
   return status === "failed" || status === "cancelled"
 }
 
+function isRunning(status: string) {
+  return (
+    status !== "queued" && status !== "completed" && !isFailed(status)
+  )
+}
+
+function RowStatusIndicator({ status }: { status: string }) {
+  if (status === "queued") {
+    return (
+      <Clock
+        size={16}
+        className="shrink-0 text-status-queued transition-opacity duration-150 ease-out"
+        aria-hidden
+      />
+    )
+  }
+  if (isRunning(status)) {
+    return (
+      <Loader2
+        size={16}
+        className="shrink-0 animate-spin text-accent motion-reduce:animate-none"
+        aria-hidden
+      />
+    )
+  }
+  if (status === "completed") {
+    return (
+      <Check
+        size={16}
+        className="shrink-0 text-status-done opacity-70 transition-opacity duration-150 ease-out"
+        aria-hidden
+      />
+    )
+  }
+  return null
+}
+
 export function EpisodeListView({
   episodes,
   selectedIds,
   onToggle,
   onRetry,
   onDelete,
+  isFilteredEmpty = false,
+  onClearFilter,
 }: EpisodeListViewProps) {
   if (episodes.length === 0) {
+    if (isFilteredEmpty) {
+      return (
+        <EmptyState
+          icon={FilterX}
+          title="Nothing here"
+          description="No episodes match this filter."
+          action={{ label: "Clear filter", onClick: () => onClearFilter?.() }}
+        />
+      )
+    }
     return (
-      <p className="text-sm text-fg-muted">
-        No episodes yet. Submit a URL on Transcribe to get started.
-      </p>
+      <EmptyState
+        icon={AudioLines}
+        title="No transcripts yet"
+        description="Paste a podcast or video URL to get your first transcript."
+        action={{ label: "Go to Transcribe", href: "/" }}
+      />
     )
   }
 
@@ -109,6 +164,7 @@ export function EpisodeListView({
                   </button>
                 </>
               )}
+              <RowStatusIndicator status={ep.status} />
               <StatusBadge status={ep.status} />
             </div>
           </li>

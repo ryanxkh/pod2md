@@ -1,16 +1,23 @@
 import { Suspense } from "react"
 import { loadDashboardData } from "@/lib/load-dashboard-data"
 import { EpisodesPageClient } from "@/components/episodes-page-client"
+import { EpisodeListSkeleton } from "@/components/episode-list-skeleton"
 
-export default async function EpisodesPage() {
+async function EpisodesData() {
   const { initialEpisodes, collections } = await loadDashboardData()
 
   return (
-    <Suspense fallback={<p className="text-sm text-fg-muted">Loading…</p>}>
-      <EpisodesPageClient
-        initialEpisodes={initialEpisodes}
-        collections={collections}
-      />
+    <EpisodesPageClient
+      initialEpisodes={initialEpisodes}
+      collections={collections}
+    />
+  )
+}
+
+export default function EpisodesPage() {
+  return (
+    <Suspense fallback={<EpisodeListSkeleton />}>
+      <EpisodesData />
     </Suspense>
   )
 }

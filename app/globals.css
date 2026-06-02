@@ -77,4 +77,36 @@ body {
   .animate-status-pulse {
     animation: status-pulse 2s ease-in-out infinite;
   }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--surface) 55%, transparent),
+      transparent
+    );
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+[data-sonner-toaster][data-sonner-theme="dark"] {
+  --normal-bg: var(--surface);
+  --normal-border: var(--border);
+  --normal-text: var(--text);
+  --success-bg: var(--surface);
+  --success-border: var(--border);
+  --success-text: var(--status-done);
+  --error-bg: var(--surface);
+  --error-border: var(--border);
+  --error-text: var(--status-fail);
 }

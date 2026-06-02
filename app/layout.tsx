@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { ToastProvider } from "@/components/toast";
+import { SonnerToaster } from "@/components/sonner-toaster";
 import { AppShell } from "@/components/app-shell";
+import "sonner/dist/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function RootLayout({
     >
       <body className={GeistSans.className}>
         <AppShell>{children}</AppShell>
-        <ToastProvider />
+        <SonnerToaster />
       </body>
     </html>
   );

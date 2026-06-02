@@ -6,7 +6,8 @@ import { Library } from "lucide-react"
 import type { EpisodeRow } from "@/components/episode-list"
 import { collectionSlug } from "@/lib/export"
 import { downloadCollectionZip } from "@/lib/episode-export-client"
-import { showToast } from "@/components/toast"
+import { notifyError, notifyInfo, notifySuccess } from "@/lib/notify"
+import { EmptyState } from "@/components/empty-state"
 
 interface CollectionsViewProps {
   episodes: EpisodeRow[]
@@ -44,7 +45,7 @@ export function CollectionsView({
 
   async function handleExport(name: string, completedIds: string[]) {
     if (completedIds.length === 0) {
-      showToast("No completed episodes in this collection")
+      notifyInfo("No completed episodes in this collection")
       return
     }
     setExporting(name)
@@ -56,9 +57,14 @@ export function CollectionsView({
         `${safeName}.zip`,
         indexAsClaudeMd,
       )
-      showToast(`Downloaded knowledge pack (${completedIds.length} episodes)`)
+      notifySuccess(
+        `Downloaded knowledge pack (${completedIds.length} episodes)`,
+      )
     } catch {
-      showToast("Failed to export collection")
+      notifyError("Failed to export collection", {
+        label: "Try again",
+        onClick: () => void handleExport(name, completedIds),
+      })
     } finally {
       setExporting(null)
     }
@@ -66,9 +72,12 @@ export function CollectionsView({
 
   if (collectionStats.length === 0) {
     return (
-      <p className="text-sm text-fg-muted">
-        No collections yet. Add a collection name when transcribing episodes.
-      </p>
+      <EmptyState
+        icon={Library}
+        title="No collections yet"
+        description="Add a collection name when transcribing to group episodes into a knowledge pack."
+        action={{ label: "Go to Transcribe", href: "/" }}
+      />
     )
   }
 

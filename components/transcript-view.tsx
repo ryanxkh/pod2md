@@ -8,7 +8,7 @@ import {
   type ExportSegment,
 } from "@/lib/export"
 import type { EpisodeEnrichment } from "@/lib/db/schema"
-import { showToast } from "@/components/toast"
+import { notifySuccess } from "@/lib/notify"
 
 const SPEAKER_COLORS = [
   "text-sky-400",
@@ -139,7 +139,7 @@ export function TranscriptView({
   const handleCopy = useCallback(async () => {
     const md = buildExportMarkdown()
     await navigator.clipboard.writeText(md)
-    showToast("Transcript copied to clipboard")
+    notifySuccess("Transcript copied to clipboard")
   }, [buildExportMarkdown])
 
   const handleDownload = useCallback(() => {
@@ -156,7 +156,7 @@ export function TranscriptView({
     })
     a.click()
     URL.revokeObjectURL(url)
-    showToast("Downloading transcript")
+    notifySuccess("Downloading transcript")
   }, [buildExportMarkdown, episodeId, episodeTitle, publishedAt, createdAt, transcribedAt])
 
   useEffect(() => {
