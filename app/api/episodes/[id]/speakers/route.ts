@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { speakers } from "@/lib/db/schema"
 import { regenerateTranscriptMarkdown } from "@/lib/speakers/regenerate-markdown"
+import { revalidateEpisode } from "@/lib/revalidate-episode"
 
 const PatchBody = z.object({
   speaker_id: z.string(),
@@ -55,6 +56,7 @@ export async function PATCH(
       })
 
     await regenerateTranscriptMarkdown(episodeId)
+    revalidateEpisode(episodeId)
 
     return Response.json({ speaker: updated })
   } catch (err) {

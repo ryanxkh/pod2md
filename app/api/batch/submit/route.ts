@@ -6,6 +6,8 @@ import { episodes, jobs } from "@/lib/db/schema"
 import { dispatchTranscriptionJob } from "@/lib/jobs/dispatch"
 import type { BatchResolvedItem } from "@/lib/batch/types"
 
+export const maxDuration = 120
+
 const BatchItemSchema = z.object({
   title: z.string().min(1),
   audio_url: z.url(),

@@ -7,6 +7,9 @@ import { generateTranscriptMarkdown } from "@/lib/markdown"
 import { resolveSpeakerNames } from "@/lib/speakers/resolve"
 import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 import { enrichEpisode } from "@/lib/enrich"
+import { revalidateEpisode } from "@/lib/revalidate-episode"
+
+export const maxDuration = 60
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -176,6 +179,8 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
       .where(eq(jobs.id, job.id))
   })
 
+  revalidateEpisode(job.episodeId)
+
   // Auto-trigger speaker name resolution after response is sent
   after(async () => {
     try {
@@ -218,6 +223,8 @@ async function handleCompleted(payload: z.infer<typeof CompletedPayload>) {
     } catch (err) {
       console.error("Episode enrichment failed:", err)
     }
+
+    revalidateEpisode(job.episodeId)
   })
 }
 
@@ -237,6 +244,8 @@ async function handleFailed(payload: z.infer<typeof FailedPayload>) {
       completedAt: new Date(),
     })
     .where(eq(jobs.id, job.id))
+
+  revalidateEpisode(job.episodeId)
 }
 
 // ── Route handler ────────────────────────────────────────────────────────────

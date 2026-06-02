@@ -1,3 +1,5 @@
+export const dynamic = "force-static"
+
 export default function SettingsPage() {
   return (
     <div className="flex max-w-lg flex-col gap-10">
