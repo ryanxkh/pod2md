@@ -50,8 +50,11 @@ interface Segment {
 interface TranscriptViewProps {
   episodeId: string
   episodeTitle: string
+  sourceUrl?: string | null
   publishedAt: string | null
   durationSecs: number | null
+  collection?: string | null
+  transcribedAt?: string | null
   speakers: Speaker[]
   segments: Segment[]
 }
@@ -59,8 +62,11 @@ interface TranscriptViewProps {
 export function TranscriptView({
   episodeId,
   episodeTitle,
+  sourceUrl,
   publishedAt,
   durationSecs,
+  collection,
+  transcribedAt,
   speakers: initialSpeakers,
   segments,
 }: TranscriptViewProps) {
@@ -88,13 +94,25 @@ export function TranscriptView({
     return generateExportMarkdown(
       {
         title: episodeTitle,
+        sourceUrl: sourceUrl ?? null,
         publishedAt,
         durationSecs,
         speakers: speakers.map((s) => s.name),
+        collection: collection ?? null,
+        transcribedAt: transcribedAt ?? null,
       },
       exportSegments,
     )
-  }, [segments, speakers, episodeTitle, publishedAt, durationSecs])
+  }, [
+    segments,
+    speakers,
+    episodeTitle,
+    sourceUrl,
+    publishedAt,
+    durationSecs,
+    collection,
+    transcribedAt,
+  ])
 
   const handleCopy = useCallback(async () => {
     const md = buildExportMarkdown()

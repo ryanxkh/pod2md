@@ -1,8 +1,5 @@
 import { z } from "zod"
-import { eq } from "drizzle-orm"
-import { db } from "@/lib/db"
-import { episodes, jobs } from "@/lib/db/schema"
-import { submitJob } from "@/lib/runpod/client"
+import { dispatchTranscriptionJob } from "@/lib/jobs/dispatch"
 
 const CreateJobBody = z.object({
   audio_url: z.url(),
@@ -12,6 +9,7 @@ const CreateJobBody = z.object({
   published_at: z.string().optional(),
   description: z.string().optional(),
   duration_secs: z.number().optional(),
+  collection: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -38,70 +36,30 @@ export async function POST(request: Request) {
     published_at,
     description,
     duration_secs,
+    collection,
   } = parsed.data
-  const sourceUrl = source_url ?? audio_url
 
   try {
-    const [episode] = await db
-      .insert(episodes)
-      .values({
-        sourceUrl,
-        audioUrl: audio_url,
-        title,
-        description: description ?? null,
-        publishedAt: published_at ? new Date(published_at) : null,
-        durationSecs: duration_secs ?? null,
-      })
-      .onConflictDoUpdate({
-        target: episodes.sourceUrl,
-        set: {
-          title,
-          audioUrl: audio_url,
-          description: description ?? undefined,
-          publishedAt: published_at ? new Date(published_at) : undefined,
-          durationSecs: duration_secs ?? undefined,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: episodes.id })
+    const result = await dispatchTranscriptionJob({
+      audio_url,
+      title,
+      source_type,
+      source_url,
+      published_at: published_at ?? null,
+      description: description ?? null,
+      duration_secs: duration_secs ?? null,
+      collection: collection?.trim() || null,
+    })
 
-    // Create job row with status queued
-    const [job] = await db
-      .insert(jobs)
-      .values({ episodeId: episode.id, status: "queued" })
-      .returning({ id: jobs.id })
-
-    // Dispatch to RunPod
-    const baseUrl = process.env.BASE_URL
-    const webhookSecret = process.env.RUNPOD_WEBHOOK_SECRET
-    const webhook =
-      baseUrl && webhookSecret
-        ? `${baseUrl}/api/webhooks/runpod?token=${webhookSecret}`
-        : undefined
-
-    let runpodResult: { id: string }
-    try {
-      runpodResult = await submitJob({ audio_url, source_type }, webhook)
-    } catch (err) {
-      console.error("RunPod submission failed:", err)
-      await db
-        .update(jobs)
-        .set({ status: "failed", errorMessage: String(err) })
-        .where(eq(jobs.id, job.id))
+    if (result.dispatchFailed) {
       return Response.json(
         { error: "Failed to dispatch job to RunPod" },
         { status: 500 },
       )
     }
 
-    // Store runpod_id on job row
-    await db
-      .update(jobs)
-      .set({ runpodId: runpodResult.id })
-      .where(eq(jobs.id, job.id))
-
     return Response.json(
-      { jobId: job.id, episodeId: episode.id },
+      { jobId: result.jobId, episodeId: result.episodeId },
       { status: 201 },
     )
   } catch (err) {

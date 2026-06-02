@@ -2,15 +2,56 @@ import { formatDuration } from "@/lib/format"
 
 export interface ExportEpisode {
   title: string
+  sourceUrl?: string | null
   publishedAt: string | null
   durationSecs: number | null
   speakers: string[]
+  collection?: string | null
+  transcribedAt?: string | null
 }
 
 export interface ExportSegment {
   startMs: number
   speakerName: string
   text: string
+}
+
+function formatYamlDate(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString().split("T")[0]
+}
+
+function yamlQuote(value: string): string {
+  if (/[:#\[\]{}&*!|>'"%@`]/.test(value) || value.includes("\n")) {
+    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+  }
+  return value
+}
+
+export function generateYamlFrontmatter(episode: ExportEpisode): string {
+  const lines = ["---"]
+  lines.push(`title: ${yamlQuote(episode.title)}`)
+  if (episode.sourceUrl) {
+    lines.push(`source_url: ${yamlQuote(episode.sourceUrl)}`)
+  }
+  const published = formatYamlDate(episode.publishedAt)
+  lines.push(`published_at: ${published ?? "null"}`)
+  if (episode.durationSecs != null) {
+    lines.push(`duration: ${formatDuration(episode.durationSecs)}`)
+  } else {
+    lines.push("duration: null")
+  }
+  const speakerList = episode.speakers.map((s) => yamlQuote(s)).join(", ")
+  lines.push(`speakers: [${speakerList}]`)
+  lines.push(
+    `collection: ${episode.collection ? yamlQuote(episode.collection) : "null"}`,
+  )
+  const transcribed = formatYamlDate(episode.transcribedAt)
+  lines.push(`transcribed_at: ${transcribed ?? "null"}`)
+  lines.push("---")
+  return lines.join("\n")
 }
 
 function formatTimestamp(ms: number, useHours: boolean): string {
@@ -33,19 +74,8 @@ export function generateExportMarkdown(
   episode: ExportEpisode,
   segments: ExportSegment[],
 ): string {
-  const lines: string[] = [`# ${episode.title}`, ""]
-
-  if (episode.publishedAt) {
-    const date = new Date(episode.publishedAt)
-    lines.push(`Date: ${date.toISOString().split("T")[0]}`)
-  }
-  if (episode.durationSecs) {
-    lines.push(`Duration: ${formatDuration(episode.durationSecs)}`)
-  }
-  if (episode.speakers.length > 0) {
-    lines.push(`Speakers: ${episode.speakers.join(", ")}`)
-  }
-  lines.push("", "---", "")
+  const frontmatter = generateYamlFrontmatter(episode)
+  const lines: string[] = [frontmatter, "", `# ${episode.title}`, ""]
 
   if (segments.length === 0) return lines.join("\n")
 

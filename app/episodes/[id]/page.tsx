@@ -92,8 +92,11 @@ export default async function EpisodePage({
         <TranscriptView
           episodeId={id}
           episodeTitle={episode.title}
+          sourceUrl={episode.sourceUrl}
           publishedAt={episode.publishedAt?.toISOString() ?? null}
           durationSecs={episode.durationSecs}
+          collection={episode.collection}
+          transcribedAt={episode.createdAt.toISOString()}
           speakers={speakerRows.map((s) => ({
             id: s.id,
             label: s.label,
