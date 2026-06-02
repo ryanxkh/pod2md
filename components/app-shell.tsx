@@ -1,8 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useCallback, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import { CommandPalette } from "@/components/command-palette"
+import { PaletteOpenContext } from "@/components/palette-context"
+import { isTypingInField } from "@/lib/keyboard"
 import {
   AudioLines,
   ChevronLeft,
@@ -49,6 +52,9 @@ const focusRing =
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"
@@ -62,6 +68,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [])
+
+  const setPaletteOpenStable = useCallback((open: boolean) => {
+    setPaletteOpen(open)
+  }, [])
+
+  const togglePalette = useCallback(() => {
+    setPaletteOpen((prev) => !prev)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const metaK = e.key === "k" && (e.metaKey || e.ctrlKey)
+      if (metaK) {
+        e.preventDefault()
+        togglePalette()
+        return
+      }
+
+      if (isTypingInField()) return
+
+      if (e.key === "/") {
+        e.preventDefault()
+        setPaletteOpen(true)
+        return
+      }
+
+      if (e.key === "n" || e.key === "N") {
+        if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+        e.preventDefault()
+        router.push("/")
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [router, togglePalette])
 
   const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
   const title = pageTitle(pathname)
@@ -211,11 +253,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             type="button"
-            onClick={() => {
-              /* TODO(phase 3): open command palette */
-            }}
+            onClick={() => setPaletteOpen(true)}
             className={`flex items-center gap-2 rounded-[8px] border border-border px-2.5 py-1.5 text-xs text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-elevated hover:text-fg ${focusRing}`}
-            aria-label="Command palette (coming soon)"
+            aria-label="Open command palette"
           >
             <Search size={14} aria-hidden />
             <span className="hidden sm:inline">Search</span>
@@ -226,9 +266,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-[880px] flex-1 px-4 py-8 md:px-8">
-          {children}
+          <PaletteOpenContext.Provider value={paletteOpen}>
+            {children}
+          </PaletteOpenContext.Provider>
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpenStable}
+      />
     </div>
   )
 }

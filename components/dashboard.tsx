@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Search, X } from "lucide-react"
+import { usePaletteOpen } from "@/components/palette-context"
 import { SubmitForm } from "./submit-form"
 import { EpisodeListView, type EpisodeRow } from "./episode-list"
 import { collectionSlug } from "@/lib/export"
@@ -52,6 +54,8 @@ export function Dashboard({
   const setCollectionFilter =
     onCollectionFilterChange ?? setInternalCollectionFilter
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const paletteOpen = usePaletteOpen()
   const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
     new Map(),
   )
@@ -69,8 +73,28 @@ export function Dashboard({
     if (activeBatchId) {
       list = list.filter((ep) => ep.batchId === activeBatchId)
     }
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter((ep) => ep.title.toLowerCase().includes(q))
+    }
     return list
-  }, [episodes, collectionFilter, activeBatchId])
+  }, [episodes, collectionFilter, activeBatchId, search])
+
+  const clearFilters = useCallback(() => {
+    setCollectionFilter(null)
+    setActiveBatchId(null)
+    setSearch("")
+  }, [setCollectionFilter])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || paletteOpen) return
+      if (selectedIds.size === 0) return
+      setSelectedIds(new Set())
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [paletteOpen, selectedIds.size])
 
   const batchIds = useMemo(() => {
     const ids = new Set<string>()
@@ -490,7 +514,25 @@ export function Dashboard({
         </div>
       )}
 
-      <section>
+      <section className={selectedIds.size > 0 ? "pb-24" : undefined}>
+        {!showSubmit && (
+          <div className="relative mb-4 max-w-sm">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search episodes…"
+              aria-label="Search episodes by title"
+              className={`w-full rounded-[8px] border border-border bg-surface py-2 pl-9 pr-3 text-sm text-fg placeholder:text-fg-muted transition-colors duration-150 ease-out hover:border-border-strong focus:border-border-strong ${focusRing}`}
+            />
+          </div>
+        )}
+
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-fg-secondary">
             Recent episodes
@@ -535,16 +577,21 @@ export function Dashboard({
           isFilteredEmpty={
             filteredEpisodes.length === 0 &&
             episodes.length > 0 &&
-            (collectionFilter != null || activeBatchId != null)
+            (collectionFilter != null ||
+              activeBatchId != null ||
+              search.trim().length > 0)
           }
-          onClearFilter={() => {
-            setCollectionFilter(null)
-            setActiveBatchId(null)
-          }}
+          onClearFilter={clearFilters}
         />
+      </section>
 
-        {selectedIds.size > 0 && (
-          <div className="mt-4 flex items-center gap-2 rounded-[8px] border border-border bg-surface px-4 py-3">
+      {selectedIds.size > 0 && (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4 md:pl-[var(--sidebar-margin,0px)]"
+          role="region"
+          aria-label="Bulk actions"
+        >
+          <div className="pointer-events-auto flex w-full max-w-[880px] items-center gap-2 rounded-[8px] border border-border bg-elevated px-4 py-3">
             <span className="mr-auto text-sm text-fg-secondary">
               {selectedIds.size} selected
             </span>
@@ -560,13 +607,21 @@ export function Dashboard({
               type="button"
               onClick={handleBulkDownload}
               disabled={exporting}
-              className={`rounded-[8px] border border-border px-3 py-1.5 text-sm font-medium text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-elevated hover:text-fg disabled:opacity-50 ${focusRing}`}
+              className={`rounded-[8px] border border-border px-3 py-1.5 text-sm font-medium text-fg-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface hover:text-fg disabled:opacity-50 ${focusRing}`}
             >
               {exporting ? "Exporting\u2026" : "Download .zip"}
             </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className={`rounded-[8px] p-1.5 text-fg-secondary transition-colors duration-150 ease-out hover:bg-surface hover:text-fg ${focusRing}`}
+              aria-label="Deselect all"
+            >
+              <X size={18} aria-hidden />
+            </button>
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   )
 }
