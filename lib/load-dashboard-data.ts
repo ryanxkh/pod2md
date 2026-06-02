@@ -3,6 +3,7 @@ import { desc, isNotNull } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, jobs } from "@/lib/db/schema"
 import type { EpisodeRow } from "@/components/episode-list"
+import { listRecentEpisodes } from "@/lib/list-recent-episodes"
 
 export async function loadDashboardData(): Promise<{
   initialEpisodes: EpisodeRow[]
@@ -23,24 +24,15 @@ export async function loadDashboardData(): Promise<{
     latestJobs.map((j) => [j.episodeId, j]),
   )
 
-  const episodeRows = await db
-    .select({
-      id: episodes.id,
-      title: episodes.title,
-      collection: episodes.collection,
-      createdAt: episodes.createdAt,
-    })
-    .from(episodes)
-    .orderBy(desc(episodes.createdAt))
-    .limit(100)
+  const recent = await listRecentEpisodes()
 
-  const initial: EpisodeRow[] = episodeRows.map((row) => {
+  const initial: EpisodeRow[] = recent.map((row) => {
     const job = jobByEpisode.get(row.id)
     return {
       id: row.id,
       title: row.title,
-      createdAt: row.createdAt.toISOString(),
-      status: job?.status ?? "completed",
+      createdAt: row.createdAt,
+      status: row.status,
       collection: row.collection,
       batchId: job?.batchId ?? null,
     }
