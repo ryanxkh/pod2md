@@ -99,16 +99,19 @@ body {
   }
 }
 
-/* Command palette (cmdk) */
-.command-palette [cmdk-overlay] {
+/* Command palette (cmdk) — overlay/dialog are ancestors of cmdk-root; use dedicated classes via overlayClassName/contentClassName */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
   background: color-mix(in srgb, var(--bg) 75%, transparent);
 }
 
-.command-palette [cmdk-dialog] {
+.command-palette-dialog {
   position: fixed;
   top: 18%;
   left: 50%;
-  z-index: 50;
+  z-index: 51;
   width: min(560px, calc(100vw - 2rem));
   max-height: min(420px, 70vh);
   transform: translateX(-50%);
