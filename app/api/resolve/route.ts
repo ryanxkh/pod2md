@@ -11,6 +11,9 @@ const ResolveBody = z.object({
   url: z.url(),
 })
 
+const FEED_FALLBACK_NOTICE =
+  "Couldn't isolate that exact episode — pick it from the feed below."
+
 export async function POST(request: Request) {
   let body: unknown
   try {
@@ -54,11 +57,40 @@ export async function POST(request: Request) {
       result = await resolveRss(url)
     }
 
-    return Response.json({
+    const matched = result.matchedEpisode
+    if (
+      result.singleEpisode &&
+      matched?.audioUrl
+    ) {
+      return Response.json({
+        type: "episode",
+        podcastTitle: result.podcastTitle,
+        episode: {
+          title: matched.title,
+          audioUrl: matched.audioUrl,
+          publishedAt: matched.publishedAt,
+          description: matched.description,
+          durationSecs: matched.durationSecs,
+        },
+      })
+    }
+
+    const payload: {
+      type: "feed"
+      podcastTitle: string
+      episodes: typeof result.episodes
+      notice?: string
+    } = {
       type: "feed",
       podcastTitle: result.podcastTitle,
       episodes: result.episodes.slice(0, 25),
-    })
+    }
+
+    if (result.singleEpisode) {
+      payload.notice = FEED_FALLBACK_NOTICE
+    }
+
+    return Response.json(payload)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return Response.json({ error: message }, { status: 422 })

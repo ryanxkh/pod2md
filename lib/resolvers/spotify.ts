@@ -1,3 +1,4 @@
+import { matchEpisodeByTitle } from "@/lib/resolvers/match-episode"
 import { resolveRss } from "@/lib/resolvers/rss"
 import type { ResolverResult } from "@/lib/resolvers/types"
 
@@ -105,12 +106,14 @@ export async function resolveSpotify(
   // Step 3: Delegate to RSS resolver
   const result = await resolveRss(match.feedUrl)
 
-  // Step 4: Boost matching episode to the top if we can identify it
-  if (oembed.title) {
-    const episodeTitle = normalise(oembed.title)
-    const idx = result.episodes.findIndex((ep) =>
-      normalise(ep.title).includes(episodeTitle) ||
-      episodeTitle.includes(normalise(ep.title)),
+  const matchedEpisode =
+    oembed.title != null
+      ? matchEpisodeByTitle(result.episodes, oembed.title)
+      : undefined
+
+  if (matchedEpisode) {
+    const idx = result.episodes.findIndex(
+      (ep) => ep.audioUrl === matchedEpisode.audioUrl,
     )
     if (idx > 0) {
       const [matched] = result.episodes.splice(idx, 1)
@@ -118,5 +121,9 @@ export async function resolveSpotify(
     }
   }
 
-  return result
+  return {
+    ...result,
+    singleEpisode: true,
+    matchedEpisode: matchedEpisode ?? undefined,
+  }
 }
