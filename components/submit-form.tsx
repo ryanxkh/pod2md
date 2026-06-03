@@ -19,7 +19,13 @@ type Step =
       sourceType: "direct" | "youtube"
       show?: string | null
     }
-  | { kind: "pick"; podcastTitle: string; episodes: ResolvedEpisode[]; inputUrl: string }
+  | {
+      kind: "pick"
+      podcastTitle: string
+      episodes: ResolvedEpisode[]
+      inputUrl: string
+      notice?: string
+    }
   | { kind: "batch-preview"; items: BatchResolvedItem[]; collection: string | null; capMessage: string | null }
 
 interface SubmitFormProps {
@@ -80,12 +86,24 @@ export function SubmitForm({
           sourceType: "youtube",
           show: data.channelName ?? null,
         })
+      } else if (data.type === "episode") {
+        await submitJob({
+          audio_url: data.episode.audioUrl,
+          title: data.episode.title,
+          source_url: url,
+          published_at: data.episode.publishedAt,
+          description: data.episode.description,
+          duration_secs: data.episode.durationSecs,
+          collection: collection.trim() || null,
+          show: data.podcastTitle,
+        })
       } else if (data.type === "feed") {
         setStep({
           kind: "pick",
           podcastTitle: data.podcastTitle,
           episodes: data.episodes,
           inputUrl: url,
+          notice: data.notice,
         })
       }
     } catch (err) {
@@ -322,6 +340,9 @@ export function SubmitForm({
   if (step.kind === "pick") {
     return (
       <div className="flex flex-col gap-3">
+        {step.notice && (
+          <p className="text-sm text-fg-secondary">{step.notice}</p>
+        )}
         <EpisodePicker
           podcastTitle={step.podcastTitle}
           episodes={step.episodes}

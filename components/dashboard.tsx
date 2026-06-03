@@ -61,7 +61,7 @@ export function Dashboard({
       : internalCollectionFilter
   const setCollectionFilter =
     onCollectionFilterChange ?? setInternalCollectionFilter
-  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [progressBatchId, setProgressBatchId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const paletteOpen = usePaletteOpen()
   const handleBulkCopyRef = useRef<() => void>(() => {})
@@ -87,19 +87,15 @@ export function Dashboard({
     if (collectionFilter) {
       list = list.filter((ep) => ep.collection === collectionFilter)
     }
-    if (activeBatchId) {
-      list = list.filter((ep) => ep.batchId === activeBatchId)
-    }
     const q = search.trim().toLowerCase()
     if (q) {
       list = list.filter((ep) => ep.title.toLowerCase().includes(q))
     }
     return list
-  }, [episodes, collectionFilter, activeBatchId, search])
+  }, [episodes, collectionFilter, search])
 
   const clearFilters = useCallback(() => {
     setCollectionFilter(null)
-    setActiveBatchId(null)
     setSearch("")
   }, [setCollectionFilter])
 
@@ -126,23 +122,15 @@ export function Dashboard({
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [paletteOpen, selectedIds.size])
 
-  const batchIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const ep of episodes) {
-      if (ep.batchId) ids.add(ep.batchId)
-    }
-    return [...ids]
-  }, [episodes])
-
   const batchProgress = useMemo(() => {
-    if (!activeBatchId) return null
-    const batchEps = episodes.filter((ep) => ep.batchId === activeBatchId)
+    if (!progressBatchId) return null
+    const batchEps = episodes.filter((ep) => ep.batchId === progressBatchId)
     if (batchEps.length === 0) return null
     const done = batchEps.filter((ep) => ep.status === "completed").length
     const running = batchEps.filter((ep) => isRunning(ep.status)).length
     const failed = batchEps.filter((ep) => isFailed(ep.status)).length
     return { done, running, failed, total: batchEps.length }
-  }, [episodes, activeBatchId])
+  }, [episodes, progressBatchId])
 
   const failedInView = filteredEpisodes.filter((ep) => isFailed(ep.status))
 
@@ -372,7 +360,7 @@ export function Dashboard({
       titles: string[]
       collection?: string | null
     }) => {
-      setActiveBatchId(batchId)
+      setProgressBatchId(batchId)
       const now = new Date().toISOString()
       const newEps: EpisodeRow[] = episodeIds.map((id, i) => ({
         id,
@@ -410,7 +398,7 @@ export function Dashboard({
         />
       )}
 
-      {(allCollections.length > 0 || batchIds.length > 0) && (
+      {(allCollections.length > 0 || batchProgress) && (
         <div className="flex flex-col gap-2">
           {allCollections.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
@@ -461,36 +449,6 @@ export function Dashboard({
                   </button>
                 </div>
               )}
-            </div>
-          )}
-          {batchIds.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-fg-muted">Batch</span>
-              <button
-                type="button"
-                onClick={() => setActiveBatchId(null)}
-                className={`rounded-[4px] px-2.5 py-1 text-xs transition-colors duration-150 ease-out ${focusRing} ${
-                  activeBatchId === null
-                    ? filterPillActive
-                    : filterPillInactive
-                }`}
-              >
-                All
-              </button>
-              {batchIds.slice(0, 5).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setActiveBatchId(id)}
-                  className={`rounded-[4px] px-2.5 py-1 font-mono text-xs transition-colors duration-150 ease-out ${focusRing} ${
-                    activeBatchId === id
-                      ? filterPillActive
-                      : filterPillInactive
-                  }`}
-                >
-                  {id.slice(0, 8)}
-                </button>
-              ))}
             </div>
           )}
           {batchProgress && (
@@ -567,9 +525,7 @@ export function Dashboard({
           isFilteredEmpty={
             filteredEpisodes.length === 0 &&
             episodes.length > 0 &&
-            (collectionFilter != null ||
-              activeBatchId != null ||
-              search.trim().length > 0)
+            (collectionFilter != null || search.trim().length > 0)
           }
           onClearFilter={clearFilters}
         />
