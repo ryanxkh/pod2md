@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 import { usePaletteOpen } from "@/components/palette-context"
 import { SubmitForm } from "./submit-form"
@@ -33,6 +34,8 @@ interface DashboardProps {
   onCollectionFilterChange?: (filter: string | null) => void
 }
 
+const REFRESH_INTERVAL_MS = 5000
+
 export function Dashboard({
   initialEpisodes,
   collections,
@@ -40,7 +43,12 @@ export function Dashboard({
   collectionFilter: collectionFilterProp,
   onCollectionFilterChange,
 }: DashboardProps) {
-  const [episodes, setEpisodes] = useState<EpisodeRow[]>(initialEpisodes)
+  const router = useRouter()
+  const [pendingEpisodes, setPendingEpisodes] = useState<EpisodeRow[]>([])
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
+  const [statusOverrides, setStatusOverrides] = useState<
+    Record<string, string>
+  >({})
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [indexAsClaudeMd, setIndexAsClaudeMd] = useState(false)
@@ -56,14 +64,23 @@ export function Dashboard({
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const paletteOpen = usePaletteOpen()
-  const pollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
-    new Map(),
-  )
   const handleBulkCopyRef = useRef<() => void>(() => {})
   const handleBulkDownloadRef = useRef<() => void>(() => {})
   const handleExportCollectionRef = useRef<() => void>(() => {})
   const handleRetryRef = useRef<(id: string) => void>(() => {})
   const handleDeleteRef = useRef<(id: string) => void>(() => {})
+
+  const episodes = useMemo(() => {
+    const serverIds = new Set(initialEpisodes.map((ep) => ep.id))
+    const pending = pendingEpisodes.filter((ep) => !serverIds.has(ep.id))
+    const merged = [...pending, ...initialEpisodes]
+      .filter((ep) => !hiddenIds.has(ep.id))
+      .map((ep) => {
+        const override = statusOverrides[ep.id]
+        return override ? { ...ep, status: override } : ep
+      })
+    return merged
+  }, [initialEpisodes, pendingEpisodes, hiddenIds, statusOverrides])
 
   const filteredEpisodes = useMemo(() => {
     let list = episodes
@@ -85,6 +102,19 @@ export function Dashboard({
     setActiveBatchId(null)
     setSearch("")
   }, [setCollectionFilter])
+
+  const hasRunningJobs = useMemo(
+    () => episodes.some((ep) => isRunning(ep.status)),
+    [episodes],
+  )
+
+  useEffect(() => {
+    if (!hasRunningJobs) return
+    const timer = setInterval(() => {
+      router.refresh()
+    }, REFRESH_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [hasRunningJobs, router])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -212,38 +242,6 @@ export function Dashboard({
     }
   }, [collectionFilter, episodes, indexAsClaudeMd])
 
-  const stopPolling = useCallback((id: string) => {
-    const timer = pollRef.current.get(id)
-    if (timer) {
-      clearInterval(timer)
-      pollRef.current.delete(id)
-    }
-  }, [])
-
-  const startPolling = useCallback(
-    (id: string) => {
-      if (pollRef.current.has(id)) return
-      const timer = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/episodes/${id}`)
-          if (!res.ok) return
-          const data = await res.json()
-          const status: string = data.job?.status ?? "completed"
-          setEpisodes((prev) =>
-            prev.map((ep) => (ep.id === id ? { ...ep, status } : ep)),
-          )
-          if (status === "completed" || status === "failed") {
-            stopPolling(id)
-          }
-        } catch {
-          /* ignore transient fetch errors */
-        }
-      }, 5000)
-      pollRef.current.set(id, timer)
-    },
-    [stopPolling],
-  )
-
   const handleRetry = useCallback(
     async (id: string) => {
       try {
@@ -256,10 +254,8 @@ export function Dashboard({
           })
           return
         }
-        setEpisodes((prev) =>
-          prev.map((ep) => (ep.id === id ? { ...ep, status: "queued" } : ep)),
-        )
-        startPolling(id)
+        setStatusOverrides((prev) => ({ ...prev, [id]: "queued" }))
+        router.refresh()
         notifySuccess("Retrying transcription")
       } catch {
         notifyError("Retry failed", {
@@ -268,13 +264,12 @@ export function Dashboard({
         })
       }
     },
-    [startPolling],
+    [router],
   )
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this episode? This cannot be undone.")) return
-    const prev = episodes
-    setEpisodes((curr) => curr.filter((ep) => ep.id !== id))
+    setHiddenIds((prev) => new Set(prev).add(id))
     setSelectedIds((s) => {
       const next = new Set(s)
       next.delete(id)
@@ -283,20 +278,30 @@ export function Dashboard({
     try {
       const res = await fetch(`/api/episodes/${id}`, { method: "DELETE" })
       if (!res.ok) {
-        setEpisodes(prev)
+        setHiddenIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
         notifyError("Delete failed", {
           label: "Retry",
           onClick: () => handleDeleteRef.current(id),
         })
+      } else {
+        router.refresh()
       }
     } catch {
-      setEpisodes(prev)
+      setHiddenIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
       notifyError("Delete failed", {
         label: "Retry",
         onClick: () => handleDeleteRef.current(id),
       })
     }
-  }, [episodes])
+  }, [router])
 
   useEffect(() => {
     handleBulkCopyRef.current = () => {
@@ -339,19 +344,6 @@ export function Dashboard({
     }
   }, [failedInView, handleDelete])
 
-  useEffect(() => {
-    for (const ep of episodes) {
-      if (isRunning(ep.status)) {
-        startPolling(ep.id)
-      }
-    }
-    const polls = pollRef.current
-    return () => {
-      for (const id of polls.keys()) stopPolling(id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const handleSubmitted = useCallback(
     (episodeId: string, title: string, collection?: string | null) => {
       const newEp: EpisodeRow = {
@@ -362,10 +354,10 @@ export function Dashboard({
         collection: collection ?? null,
         batchId: null,
       }
-      setEpisodes((prev) => [newEp, ...prev])
-      startPolling(episodeId)
+      setPendingEpisodes((prev) => [newEp, ...prev])
+      router.refresh()
     },
-    [startPolling],
+    [router],
   )
 
   const handleBatchSubmitted = useCallback(
@@ -390,13 +382,11 @@ export function Dashboard({
         collection: collection ?? null,
         batchId,
       }))
-      setEpisodes((prev) => [...newEps, ...prev])
-      for (const id of episodeIds) {
-        startPolling(id)
-      }
+      setPendingEpisodes((prev) => [...newEps, ...prev])
+      router.refresh()
       notifySuccess(`Queued ${episodeIds.length} episode(s)`)
     },
-    [startPolling],
+    [router],
   )
 
   const allCollections = useMemo(() => {

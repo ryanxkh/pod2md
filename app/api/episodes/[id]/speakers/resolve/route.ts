@@ -4,6 +4,8 @@ import { episodes, speakers, segments } from "@/lib/db/schema"
 import { resolveSpeakerNames } from "@/lib/speakers/resolve"
 import { applySpeakerResolution } from "@/lib/speakers/apply-results"
 
+export const maxDuration = 300
+
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },

@@ -1,11 +1,25 @@
-import { eq, asc, desc } from "drizzle-orm"
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { db } from "@/lib/db"
-import { episodes, speakers, segments, jobs } from "@/lib/db/schema"
 import { EpisodeOverview } from "@/components/episode-overview"
+import { EpisodeProgressPoller } from "@/components/episode-progress-poller"
 import { TranscriptView } from "@/components/transcript-view"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDuration } from "@/lib/format"
+import {
+  getEpisodeTitle,
+  loadEpisodePageData,
+} from "@/lib/load-episode-page"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const title = await getEpisodeTitle(id)
+  if (!title) return { title: "Episode not found" }
+  return { title: `${title} · pod2md` }
+}
 
 export default async function EpisodePage({
   params,
@@ -13,33 +27,11 @@ export default async function EpisodePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const data = await loadEpisodePageData(id)
 
-  const [episode] = await db
-    .select()
-    .from(episodes)
-    .where(eq(episodes.id, id))
-    .limit(1)
+  if (!data) notFound()
 
-  if (!episode) notFound()
-
-  const [latestJob] = await db
-    .select()
-    .from(jobs)
-    .where(eq(jobs.episodeId, id))
-    .orderBy(desc(jobs.createdAt))
-    .limit(1)
-
-  const speakerRows = await db
-    .select()
-    .from(speakers)
-    .where(eq(speakers.episodeId, id))
-
-  const segmentRows = await db
-    .select()
-    .from(segments)
-    .where(eq(segments.episodeId, id))
-    .orderBy(asc(segments.seq))
-
+  const { episode, latestJob, speakerRows, segmentRows } = data
   const hasTranscript = segmentRows.length > 0
   const isLoading =
     latestJob &&
@@ -48,6 +40,8 @@ export default async function EpisodePage({
 
   return (
     <div className="flex flex-col gap-8">
+      {isLoading && <EpisodeProgressPoller />}
+
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">
           {episode.title}

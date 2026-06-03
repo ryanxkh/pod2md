@@ -1,6 +1,7 @@
 import { eq, desc, asc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, speakers, segments, jobs } from "@/lib/db/schema"
+import { revalidateEpisodesList } from "@/lib/revalidate-episode"
 
 export async function DELETE(
   _request: Request,
@@ -18,6 +19,7 @@ export async function DELETE(
       return Response.json({ error: "Episode not found" }, { status: 404 })
     }
 
+    revalidateEpisodesList()
     return new Response(null, { status: 204 })
   } catch (err) {
     console.error("Episode delete failed:", err)

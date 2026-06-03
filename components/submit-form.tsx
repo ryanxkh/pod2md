@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 import { ClipboardList } from "lucide-react"
 import { EpisodePicker } from "./episode-picker"
@@ -22,16 +23,24 @@ type Step =
   | { kind: "batch-preview"; items: BatchResolvedItem[]; collection: string | null; capMessage: string | null }
 
 interface SubmitFormProps {
-  onSubmitted: (episodeId: string, title: string, collection?: string | null) => void
+  onSubmitted?: (episodeId: string, title: string, collection?: string | null) => void
   onBatchSubmitted?: (payload: {
     batchId: string
     episodeIds: string[]
     titles: string[]
     collection?: string | null
   }) => void
+  redirectOnSubmit?: string
+  redirectOnBatchSubmit?: string
 }
 
-export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
+export function SubmitForm({
+  onSubmitted,
+  onBatchSubmitted,
+  redirectOnSubmit,
+  redirectOnBatchSubmit,
+}: SubmitFormProps) {
+  const router = useRouter()
   const [url, setUrl] = useState("")
   const [title, setTitle] = useState("")
   const [step, setStep] = useState<Step>({ kind: "url" })
@@ -127,7 +136,8 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
 
       const submittedTitle = payload.title
       resetForm()
-      onSubmitted(data.episodeId, submittedTitle, payload.collection ?? null)
+      onSubmitted?.(data.episodeId, submittedTitle, payload.collection ?? null)
+      if (redirectOnSubmit) router.push(redirectOnSubmit)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -195,6 +205,7 @@ export function SubmitForm({ onSubmitted, onBatchSubmitted }: SubmitFormProps) {
         titles: episodes.map((e) => e.title),
         collection: data.collection ?? batchCollection,
       })
+      if (redirectOnBatchSubmit) router.push(redirectOnBatchSubmit)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
