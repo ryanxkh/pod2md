@@ -1,5 +1,4 @@
 import { unstable_cache } from "next/cache"
-import { connection } from "next/server"
 import { desc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { episodes, jobs } from "@/lib/db/schema"
@@ -15,8 +14,6 @@ export type RecentEpisodeListItem = {
 }
 
 async function fetchRecentEpisodes(): Promise<RecentEpisodeListItem[]> {
-  await connection()
-
   const latestJobs = await db
     .selectDistinctOn([jobs.episodeId], {
       episodeId: jobs.episodeId,
